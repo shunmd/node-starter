@@ -4,6 +4,7 @@ import vitest from '@vitest/eslint-plugin';
 import prettierConfig from 'eslint-config-prettier';
 import n from 'eslint-plugin-n';
 import promise from 'eslint-plugin-promise';
+import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -127,6 +128,17 @@ export default tseslint.config(
       // control-flow clarity, not merely to make a number smaller.
       complexity: ['error', 10],
 
+      // SonarQube is intentionally not part of this template. These local
+      // ESLint rules keep the same maintainability signals available without
+      // a server, credentials or project-specific CI integration.
+      'sonarjs/cognitive-complexity': ['error', 15],
+      'sonarjs/no-all-duplicated-branches': 'error',
+      'sonarjs/no-duplicated-branches': 'error',
+      'sonarjs/no-identical-conditions': 'error',
+      'sonarjs/no-identical-expressions': 'error',
+      'sonarjs/no-identical-functions': 'error',
+      'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
+
       // Names of types are structural information, so they are worth
       // constraining. Broader naming-convention configs mostly generate churn.
       '@typescript-eslint/naming-convention': [
@@ -145,6 +157,9 @@ export default tseslint.config(
       // Redundant with @typescript-eslint/no-floating-promises, which is
       // type-aware and therefore more accurate.
       'promise/catch-or-return': 'off',
+    },
+    plugins: {
+      sonarjs,
     },
   },
 
