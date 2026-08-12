@@ -133,7 +133,16 @@ GitHub repository settings have a separate declarative source of truth under
 compare it with the live repository using `node scripts/github-settings.ts
 --check --remote`. Applying the settings
 is a protected `workflow_dispatch` operation on `main` or an explicitly opted-in
-local command. The script never manages secret values.
+local command. For local application, use the authenticated GitHub CLI token:
+
+```sh
+ALLOW_GITHUB_SETTINGS_APPLY=1 \
+GH_TOKEN="$(gh auth token)" \
+node scripts/github-settings.ts --apply
+```
+
+The token must have the repository administration and secret metadata read
+permissions required by the GitHub API. The script never manages secret values.
 
 ## Adding a dependency
 
