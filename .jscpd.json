@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/kucherenko/jscpd/master/apps/jscpd/src/config.schema.json",
   "path": ["src", "scripts"],
   "ignore": ["**/*.test.ts", "**/*.spec.ts"],
   "format": ["typescript"],

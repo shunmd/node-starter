@@ -24,3 +24,14 @@ declare module 'eslint-plugin-promise' {
   };
   export default plugin;
 }
+
+declare module 'eslint-plugin-security' {
+  import type { Linter } from 'eslint';
+
+  const plugin: {
+    readonly configs: {
+      readonly recommended: Linter.Config;
+    };
+  };
+  export default plugin;
+}
