@@ -77,7 +77,7 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Coverage        | Coverage on New Code          | `>= 80%`           | Approximated by the per-file threshold; see 4.11                               |
 | Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate job)                                               |
 | Review          | Enforcement-layer Approval    | code owner review  | Active: `.github/CODEOWNERS` + `main` ruleset                                  |
-| Review          | Enforcement-layer Intent      | declared           | Active: CI `guard enforcement layer`                                           |
+| Review          | Protected-file Notice         | informational      | Active: CI `protected-file-notice`                                             |
 | Shell           | Shell Lint Finding            | `= 0`              | Not measured: ShellCheck not in the pinned toolchain                           |
 
 いずれかの必須項目がGateを満たさない場合、Quality GateはFAILである。
@@ -342,8 +342,11 @@ pnpm check:workflows
 
 - すべての`uses:`をfull commit shaで固定する。tagやbranchはレビュー後に
   別のコードへ差し替えられる。
-- すべてのjobに`timeout-minutes`を設定し、上限を30分とする。
+- `uses:`でReusable Workflowを呼び出すjob以外は`timeout-minutes`を設定し、
+  上限を30分とする。Reusable Workflowのtimeoutは呼び出し先で設定する。
 - workflowはtop-levelで`permissions`を宣言する。
+- 外部Reusable Workflowはfull commit shaで固定し、local workflowは
+  `.github/workflows/`配下に置く。OIDCの`id-token: write`はjob単位だけ許可する。
 - `pull_request_target`を使用しない。
 - `run:`に`${{ }}`を直接展開しない。値はshell実行前に貼り込まれるため、
   それに影響できる者はコマンドを実行できる。`env:`経由で渡す。
@@ -357,15 +360,14 @@ Quality Gateが「人的レビューの卒業」を意味するのは、機械�
 
 境界は二重になっており、役割が異なる。
 
-| 仕組み                         | 何を保証するか                                    |
-| ------------------------------ | ------------------------------------------------- |
-| CI `guard enforcement layer`   | 意図の宣言。ついでの変更を止め、titleに可視化する |
-| `.github/CODEOWNERS` + ruleset | 承認そのもの。作者自身では与えられない            |
+| 仕組み                         | 何を保証するか                           |
+| ------------------------------ | ---------------------------------------- |
+| CI `protected-file-notice`     | 変更パスをPRコメントに記録する情報通知   |
+| `.github/CODEOWNERS` + ruleset | 対象パスの承認。作者自身では与えられない |
 
-前者だけでは制御にならない。PRのtitleとlabelはPRを作成した側 (Agentを
-含む) が設定できるため、宣言以上の意味を持たない。実際の承認は
-`.github/CODEOWNERS`とmain rulesetの`require_code_owner_review`であり、
-これはPR作者が自分に与えることができない。
+前者は制御ではなく情報通知であり、PRのtitleやlabelも要求しない。実際の
+承認は`.github/CODEOWNERS`とmain rulesetの`require_code_owner_review`で
+対象パスに対してだけ要求され、これはPR作者が自分に与えることができない。
 
 `require_last_push_approval: true`も同じ理由で必須である。これがないと、
 承認を得た後に追加pushした内容が未承認のまま入る。

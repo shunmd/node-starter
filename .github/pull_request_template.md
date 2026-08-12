@@ -26,10 +26,10 @@ deliberate omission. Write "none" if there genuinely is none.
 Delete this section unless the pull request touches a protected path
 (package.json, pnpm-lock.yaml, the tool configs, .github/, infra/, scripts/).
 
-If it does, the title must contain TOOLCHAIN-CHANGE-APPROVED or the pull
-request must carry the `toolchain` label, and a code owner has to approve it.
-Say which rule is being added, relaxed, or removed, and what a reviewer should
-check that the new configuration itself does not.
+If it does, describe which rule is being added, relaxed, or removed, and what a
+reviewer should check that the new configuration itself does not. The
+protected-file notice is informational; no title marker or label is required.
+Matching CODEOWNERS entries and the main ruleset provide the approval boundary.
 -->
 
 ## Exceptions

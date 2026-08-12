@@ -56,12 +56,11 @@ predates the split and is exempt from both; the proposal to decompose it is in
 
 ## The human approval boundary
 
-Two mechanisms, doing different jobs. The CI `guard enforcement layer` job
-records a _declaration of intent_: the pull request title or label says the
-enforcement layer is being changed on purpose. Both are set by whoever opened
-the pull request, so neither is an approval. The approval is
+Two mechanisms, doing different jobs. The CI `protected-file-notice` job
+records which enforcement-layer paths changed in an informational pull request
+comment; it does not inspect or require a title marker or label. The approval is
 `.github/CODEOWNERS`, enforced by the `main` ruleset as a required code-owner
-review, which an author cannot grant themselves.
+review for matching paths, which an author cannot grant themselves.
 
 `src/` and `docs/` are deliberately absent from CODEOWNERS. Changes there are
 judged by the checks; requiring a human to read them would restore the review

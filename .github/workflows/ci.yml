@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '17 4 * * *'
 
 # Least privilege by default. A job that needs more asks for it explicitly.
 permissions:

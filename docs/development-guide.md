@@ -47,9 +47,12 @@ The fast gate includes these checks beyond formatting, linting and types:
   full clone, so it fails loudly in a shallow one rather than passing on the few
   commits it can see. Do not store credentials or add broad allowlists.
 - `pnpm check:workflows` treats `.github/workflows/**` as reviewable code:
-  actions pinned to a commit sha, a timeout on every job, top-level
+  actions pinned to a commit sha, a timeout on each ordinary job, top-level
   `permissions`, no `pull_request_target`, no `${{ }}` expression interpolated
   into a `run:` block, and `persist-credentials: false` on every checkout.
+  External reusable workflows must also use a full commit sha; local reusable
+  workflows are checked when they live under `.github/workflows/`. OIDC is
+  allowed only as a job-scoped `id-token: write` permission.
 - `pnpm check:deps` fails on any `pnpm audit` advisory and on any licence
   outside the allow list in `infra/policy/dependency-policy.json`. See
   "Accepting a dependency exception" below.
@@ -213,9 +216,11 @@ the allow list. Both are worth checking before you get attached to a package:
 pnpm check:deps
 ```
 
-`package.json` and `pnpm-lock.yaml` are protected paths, so adding a dependency
-needs the `toolchain` marker and a code-owner review. That is deliberate -- a
-new dependency is a supply-chain change, whoever wrote the diff.
+`package.json` and `pnpm-lock.yaml` are protected paths. The
+`protected-file-notice` comment makes such changes visible, while CODEOWNERS
+requires the configured code-owner review. No title marker or label is needed.
+That is deliberate -- a new dependency is a supply-chain change, whoever wrote
+the diff.
 
 ## Accepting a dependency exception
 
@@ -227,6 +232,7 @@ it in `infra/policy/dependency-policy.json` rather than lowering a threshold.
 {
   "advisory": "GHSA-xxxx-xxxx-xxxx",
   "package": "some-package",
+  "paths": [".>parent-package>some-package"],
   "reason": "Reached only through <path>, which never receives untrusted input. No patched release exists yet.",
   "owner": "who decided this",
   "reviewBy": "2026-11-30"
@@ -236,8 +242,10 @@ it in `infra/policy/dependency-policy.json` rather than lowering a threshold.
 Four properties are enforced by the check itself, not by convention:
 
 - The exception names the **exact** finding. An advisory exception matches one
-  advisory id and one package name; a licence exception matches one package and
-  one licence. Nothing is exempted in general.
+  advisory id, one package name, and the explicitly reviewed dependency paths;
+  a licence exception matches one package and one licence. Nothing is exempted
+  in general. If a new path reaches the vulnerable package, the exception fails
+  closed until the path is reviewed and added.
 - `reason` and `owner` are required. An exception with no stated reason fails to
   parse.
 - `reviewBy` is required for advisories. Past that date the exception stops
@@ -301,10 +309,10 @@ never pick up a package published in the last few days.
 deliberate reversal of the earlier position that an advisory database changing
 without your code changing would make CI red for unrelated reasons. It does, and
 that is the correct outcome: a newly published advisory means the dependency
-graph you already merged is now known to be vulnerable, and a gate that only
-fires on commits you happen to make will not tell you. The escape hatch is a
-recorded exception with a re-evaluation date, not a check that runs on someone's
-own schedule and is therefore never run.
+graph you already merged is now known to be vulnerable, and the CI workflow
+runs the standard gate daily as well as on pushes and pull requests. The escape
+hatch is a recorded exception with reviewed dependency paths and a re-evaluation
+date, not a permanently ignored advisory.
 
 ## Building and publishing
 

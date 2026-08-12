@@ -43,7 +43,10 @@
       "name": "no-production-to-dev-dependency",
       "comment": "src/ is the code this project ships. A devDependency is present on a developer's machine and in CI, and absent everywhere else, so importing one from src/ produces a module that works in every test and fails on first run. scripts/ is exempt: it only ever runs where devDependencies are installed.",
       "severity": "error",
-      "from": { "path": "^src/", "pathNot": "\\.(test|spec)\\.ts$" },
+      "from": {
+        "path": "^src/",
+        "pathNot": ["(^|/)(test|tests|test-utils)(/|$)", "\\.(test|spec)\\.ts$"]
+      },
       "to": { "dependencyTypes": ["npm-dev"] }
     },
     {

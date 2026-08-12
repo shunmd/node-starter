@@ -53,10 +53,11 @@ async function readActionDirectory(
   } catch {
     return [];
   }
-  const manifest = entries.find(
-    (entry) =>
-      entry.isFile() && ['action.yml', 'action.yaml'].includes(entry.name),
-  );
+  // GitHub gives action.yml precedence when both supported manifest names are
+  // present. Do not depend on the filesystem's directory-entry order here.
+  const manifest =
+    entries.find((entry) => entry.isFile() && entry.name === 'action.yml') ??
+    entries.find((entry) => entry.isFile() && entry.name === 'action.yaml');
   const current =
     manifest === undefined
       ? []

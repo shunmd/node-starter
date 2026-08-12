@@ -20,6 +20,8 @@ REF="${1:-main}"
 # Files the template owns. Application code is never compared.
 TRACKED_PATHS=(
   mise.toml
+  package.json
+  pnpm-lock.yaml
   pnpm-workspace.yaml
   tsconfig.json
   eslint.config.js

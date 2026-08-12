@@ -38,6 +38,10 @@
       {
         "advisory": "GHSA-q8mj-m7cp-5q26",
         "package": "qs",
+        "paths": [
+          ".>@stryker-mutator/core>typed-rest-client>qs",
+          ".>@stryker-mutator/vitest-runner>@stryker-mutator/core>typed-rest-client>qs"
+        ],
         "reason": "Denial of service in qs.stringify, reached only through @stryker-mutator/core's HTTP client during mutation testing. This repository never passes attacker-controlled input to it, and the package is a devDependency that is not shipped. No patched release is reachable without waiting for StrykerJS to update typed-rest-client.",
         "owner": "repository maintainer",
         "reviewBy": "2026-11-30"

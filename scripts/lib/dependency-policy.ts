@@ -13,20 +13,13 @@
  * approvals for problems that are already gone.
  */
 
+import type { VulnerabilityException } from './vulnerability-policy.ts';
+
 interface LicenseException {
   readonly package: string;
   readonly license: string;
   readonly reason: string;
   readonly owner: string;
-}
-
-interface VulnerabilityException {
-  readonly advisory: string;
-  readonly package: string;
-  readonly reason: string;
-  readonly owner: string;
-  /** `YYYY-MM-DD`. After this date the exception fails instead of suppressing. */
-  readonly reviewBy: string;
 }
 
 export interface DependencyPolicy {
@@ -130,6 +123,13 @@ function parseVulnerabilityException(
   context: string,
 ): VulnerabilityException {
   const entry = requireObject(value, context);
+  const paths = requireArray(entry, 'paths', context);
+  if (
+    paths.length === 0 ||
+    paths.some((path) => typeof path !== 'string' || path.length === 0)
+  ) {
+    throw new Error(`${context}.paths must contain non-empty dependency paths`);
+  }
   const reviewBy = requireString(entry, 'reviewBy', context);
   if (!isCalendarDate(reviewBy)) {
     throw new Error(`${context}.reviewBy must be a YYYY-MM-DD date`);
@@ -137,6 +137,7 @@ function parseVulnerabilityException(
   return {
     advisory: requireString(entry, 'advisory', context),
     package: requireString(entry, 'package', context),
+    paths: paths as readonly string[],
     reason: requireString(entry, 'reason', context),
     owner: requireString(entry, 'owner', context),
     reviewBy,
@@ -249,59 +250,7 @@ export function parseLicenseReport(value: unknown): readonly LicenseUsage[] {
   });
 }
 
-function describeAdvisory(advisory: Advisory): string {
-  const via = advisory.paths[0];
-  return (
-    `${advisory.severity} vulnerability in ${advisory.module} (${advisory.id}): ${advisory.title}. ` +
-    (via === undefined ? '' : `Reached via ${via}. `) +
-    `See ${advisory.url}. Upgrade the dependency, or record a reviewed exception ` +
-    `in infra/policy/dependency-policy.json.`
-  );
-}
-
-/**
- * @param today - `YYYY-MM-DD` in UTC. Passed in rather than read from the clock
- *   so the expiry behaviour is testable.
- */
-export function evaluateVulnerabilities(
-  advisories: readonly Advisory[],
-  policy: DependencyPolicy,
-  today: string,
-): readonly string[] {
-  const problems: string[] = [];
-  const used = new Set<VulnerabilityException>();
-
-  for (const advisory of advisories) {
-    const exception = policy.vulnerabilityExceptions.find(
-      (candidate) =>
-        candidate.advisory === advisory.id &&
-        candidate.package === advisory.module,
-    );
-    if (exception === undefined) {
-      problems.push(describeAdvisory(advisory));
-      continue;
-    }
-    used.add(exception);
-    if (exception.reviewBy < today) {
-      problems.push(
-        `The accepted exception for ${advisory.id} (${advisory.module}) was due for review on ` +
-          `${exception.reviewBy} and is now expired. Owner: ${exception.owner}. ` +
-          `Re-confirm the assessment and move the date, or remove the dependency.`,
-      );
-    }
-  }
-
-  for (const exception of policy.vulnerabilityExceptions) {
-    if (!used.has(exception)) {
-      problems.push(
-        `dependency-policy.json accepts advisory ${exception.advisory} for ${exception.package}, ` +
-          `but pnpm audit no longer reports it. ${STALE_EXCEPTION_HINT}`,
-      );
-    }
-  }
-
-  return problems;
-}
+export { evaluateVulnerabilities } from './vulnerability-policy.ts';
 
 /**
  * A licence exception may end in `*`, which matches a package-name prefix.

@@ -196,6 +196,32 @@ jobs:
     expect(problemsOf(source)).toStrictEqual([]);
   });
 
+  it('rejects an external reusable workflow pinned to a branch', () => {
+    const source = `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  deploy:
+    uses: octo-org/central/.github/workflows/deploy.yml@main
+`;
+    expect(problemsOf(source)).toStrictEqual([
+      expect.stringContaining('reusable workflow'),
+    ]);
+  });
+
+  it('accepts an external reusable workflow pinned to a full commit sha', () => {
+    const source = `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  deploy:
+    uses: octo-org/central/.github/workflows/deploy.yml@3d3c42e5aac5ba805825da76410c181273ba90b1
+`;
+    expect(problemsOf(source)).toStrictEqual([]);
+  });
+
   it('rejects a top-level permissions block that grants every write scope', () => {
     const source = compliantWorkflow().replace(
       'permissions:\n  contents: read\n',
@@ -226,6 +252,14 @@ jobs:
     ]);
   });
 
+  it('allows an id-token grant scoped to the job that needs OIDC', () => {
+    const source = compliantWorkflow().replace(
+      '    steps:\n',
+      '    permissions:\n      id-token: write\n    steps:\n',
+    );
+    expect(problemsOf(source)).toStrictEqual([]);
+  });
+
   it('does not demand a timeout on a job that calls a reusable workflow', () => {
     const source = `name: CI
 on: push
@@ -245,6 +279,21 @@ jobs:
     expect([...result.localReferences]).toStrictEqual([
       '.github/actions/setup',
     ]);
+  });
+
+  it('records a local reusable workflow separately from local actions', () => {
+    const result = checkWorkflow(`name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: ./.github/workflows/reusable.yml
+`);
+    expect([...result.localWorkflowReferences]).toStrictEqual([
+      '.github/workflows/reusable.yml',
+    ]);
+    expect([...result.localReferences]).toStrictEqual([]);
   });
 });
 
@@ -351,6 +400,43 @@ describe('checkWorkflows', () => {
       ],
     );
     expect(problems).toStrictEqual([]);
+  });
+
+  it('accepts a local reusable workflow whose file was scanned', () => {
+    const problems = checkWorkflows([
+      {
+        path: '.github/workflows/ci.yml',
+        source: `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: ./.github/workflows/reusable.yml
+`,
+      },
+      { path: '.github/workflows/reusable.yml', source: compliantWorkflow() },
+    ]);
+    expect(problems).toStrictEqual([]);
+  });
+
+  it('rejects a local reusable workflow outside the workflow directory', () => {
+    const problems = checkWorkflows([
+      {
+        path: '.github/workflows/ci.yml',
+        source: `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: ./.github/actions/setup
+`,
+      },
+    ]);
+    expect(problems).toStrictEqual([
+      expect.stringContaining('must be under .github/workflows'),
+    ]);
   });
 
   it('applies the step rules to the scanned action manifest as well', () => {

@@ -68,6 +68,7 @@ describe('parseDependencyPolicy', () => {
           {
             advisory: ADVISORY_ID,
             package: 'qs',
+            paths: ['.>stryker>qs'],
             reason: REASON,
             owner: OWNER,
             reviewBy: '2026-11-30',
@@ -76,6 +77,9 @@ describe('parseDependencyPolicy', () => {
       },
     });
     expect(parsed.licenseExceptions).toHaveLength(1);
+    expect(parsed.vulnerabilityExceptions[0]?.paths).toStrictEqual([
+      '.>stryker>qs',
+    ]);
     expect(parsed.vulnerabilityExceptions[0]?.reviewBy).toBe('2026-11-30');
   });
 
@@ -146,6 +150,7 @@ describe('parseDependencyPolicy', () => {
             {
               advisory: ADVISORY_ID,
               package: 'qs',
+              paths: ['.>stryker>qs'],
               reason: REASON,
               owner: OWNER,
               reviewBy: 'next quarter',
@@ -165,6 +170,7 @@ describe('parseDependencyPolicy', () => {
             {
               advisory: ADVISORY_ID,
               package: 'qs',
+              paths: ['.>stryker>qs'],
               reason: REASON,
               owner: OWNER,
               reviewBy: '2026-99-30',
@@ -184,6 +190,7 @@ describe('parseDependencyPolicy', () => {
             {
               advisory: ADVISORY_ID,
               package: 'qs',
+              paths: ['.>stryker>qs'],
               reason: REASON,
               owner: OWNER,
               reviewBy: '2026-02-30',
@@ -201,6 +208,26 @@ describe('parseDependencyPolicy', () => {
         vulnerabilities: { exceptions: [] },
       }),
     ).toThrow('must be a JSON object');
+  });
+
+  it('rejects a vulnerability exception without reviewed dependency paths', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-11-30',
+              paths: [],
+            },
+          ],
+        },
+      }),
+    ).toThrow('paths must contain non-empty dependency paths');
   });
 });
 
@@ -326,6 +353,7 @@ describe('evaluateVulnerabilities', () => {
       {
         advisory: ADVISORY_ID,
         package: 'qs',
+        paths: ['.>stryker>qs'],
         reason: REASON,
         owner: OWNER,
         reviewBy: '2026-11-30',
@@ -368,6 +396,26 @@ describe('evaluateVulnerabilities', () => {
   it('fails on an exception that no longer matches any advisory', () => {
     expect(evaluateVulnerabilities([], accepted, today)).toStrictEqual([
       expect.stringContaining('Delete the stale exception'),
+    ]);
+  });
+
+  it('fails when an advisory gains a path outside the accepted exception', () => {
+    const problems = evaluateVulnerabilities(
+      [advisory({ paths: ['.>stryker>qs', '.>production>qs'] })],
+      accepted,
+      today,
+    );
+    expect(problems).toStrictEqual([expect.stringContaining('does not cover')]);
+  });
+
+  it('fails closed when an accepted advisory has no path data', () => {
+    const problems = evaluateVulnerabilities(
+      [advisory({ paths: [] })],
+      accepted,
+      today,
+    );
+    expect(problems).toStrictEqual([
+      expect.stringContaining('path data unavailable'),
     ]);
   });
 });
