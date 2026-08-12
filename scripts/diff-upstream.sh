@@ -28,6 +28,7 @@ TRACKED_PATHS=(
   stryker.config.json
   knip.jsonc
   .dependency-cruiser.json
+  .jscpd.json
   .editorconfig
   .gitattributes
   .prettierignore

@@ -38,7 +38,7 @@ git fetch --quiet template main
 git diff --name-status HEAD template/main -- \
   mise.toml pnpm-workspace.yaml tsconfig.json eslint.config.js \
   prettier.config.js vitest.config.ts stryker.config.json knip.jsonc \
-  .dependency-cruiser.json .editorconfig .gitattributes .prettierignore \
+  .dependency-cruiser.json .jscpd.json .editorconfig .gitattributes .prettierignore \
   .github/workflows/ci.yml scripts/check-toolchain-age.ts \
   scripts/secret-scan.sh AGENTS.md
 ```

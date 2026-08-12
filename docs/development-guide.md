@@ -13,9 +13,9 @@ pnpm test:mutation   # required mutation gate; same command as the CI mutation j
 ```
 
 `pnpm verify` runs `check:toolchain`, `format:check`, `lint`, `typecheck`,
-`deadcode`, `architecture`, `secret:scan` and `test:coverage` in that order,
-stopping at the first failure. `pnpm check` is a compatibility alias. Individual
-steps exist as separate scripts when you want a faster loop.
+`deadcode`, `architecture`, `duplication`, `secret:scan` and `test:coverage` in
+that order, stopping at the first failure. `pnpm check` is a compatibility
+alias. Individual steps exist as separate scripts when you want a faster loop.
 
 There is intentionally no `ci` script. CI runs `pnpm verify` and
 `pnpm test:mutation` as separate required jobs, so each job uses the same command
@@ -28,7 +28,7 @@ cannot execute yet.
 
 ## Static analysis and security checks
 
-The fast gate includes four checks beyond formatting, linting and types:
+The fast gate includes five checks beyond formatting, linting and types:
 
 - `pnpm deadcode` runs Knip for unused files, dependencies, exports and exported
   types. The entry points are explicit in `knip.jsonc`; do not add ignores just
@@ -36,6 +36,8 @@ The fast gate includes four checks beyond formatting, linting and types:
 - `pnpm architecture` runs dependency-cruiser. It rejects cycles, unresolved
   imports and imports from production code into tests. No layer rule is added
   because this template has no application architecture yet.
+- `pnpm duplication` runs jscpd against `src` and `scripts`. It limits
+  repository-wide duplicated lines to 2%; it is not a changed-lines metric.
 - `pnpm lint` also runs selected `eslint-plugin-sonarjs` rules for cognitive
   complexity and structural duplication. This is local ESLint analysis, not a
   SonarQube server or a severity-ranked changed-code report.
