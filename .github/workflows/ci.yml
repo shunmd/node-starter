@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege by default. A job that needs more asks for it explicitly.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs exactly the versions pinned in mise.toml, verified against
+      # mise.lock. CI therefore runs the same toolchain as a laptop, from the
+      # same file -- there is no second place where a Node version is written.
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      # --frozen-lockfile makes an out-of-date pnpm-lock.yaml a build failure
+      # rather than something CI quietly repairs. It also means CI performs no
+      # dependency resolution, so it cannot pick up a version the lockfile
+      # never approved.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # One command, the same one developers run. If this passes, the change
+      # meets the standard; there is no additional CI-only criterion to learn.
+      - name: Check
+        run: pnpm check
+
+  # The repository's rule is that agents may edit docs and code freely, but the
+  # enforcement layer -- lint config, CI, toolchain pins, supply-chain settings
+  # -- changes only with a human's explicit sign-off. That rule is worthless as
+  # a sentence in AGENTS.md, so it is a job.
+  #
+  # To make an approved change: put `TOOLCHAIN-CHANGE-APPROVED` in the pull
+  # request title, or add the `toolchain` label.
+  guard-enforcement-layer:
+    name: guard enforcement layer
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes to protected paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          protected_paths='^(eslint\.config\.js|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|\.github/workflows/|scripts/check-toolchain-age\.ts)'
+          changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
+
+          if [ -z "${changed}" ]; then
+            echo "No protected paths touched."
+            exit 0
+          fi
+
+          echo "Protected paths changed:"
+          echo "${changed}" | sed 's/^/  - /'
+
+          case ",${PR_LABELS}," in *,toolchain,*) approved=1 ;; *) approved=0 ;; esac
+          case "${PR_TITLE}" in *TOOLCHAIN-CHANGE-APPROVED*) approved=1 ;; esac
+
+          if [ "${approved}" -eq 1 ]; then
+            echo "Change is explicitly approved."
+            exit 0
+          fi
+
+          echo
+          echo "These files define how quality is enforced, so they are not changed as a"
+          echo "side effect of ordinary work. If the change is intended, add the 'toolchain'"
+          echo "label or put TOOLCHAIN-CHANGE-APPROVED in the pull request title."
+          exit 1

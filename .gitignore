@@ -141,3 +141,21 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Added by this template ---------------------------------------------------
+
+# mise: machine-local tool overrides and installs. mise.toml and mise.lock ARE
+# committed -- they are the reproducibility guarantee.
+mise.local.toml
+mise.local.lock
+.mise/
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
