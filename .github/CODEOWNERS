@@ -1,0 +1,49 @@
+# Who must approve what.
+#
+# The `main` ruleset requires a code owner's review, so every pattern below is
+# a hard approval boundary: a pull request that touches a matching path cannot
+# merge on the author's own say-so, and an agent cannot grant it by editing a
+# title or a label.
+#
+# Ordinary application code (`src/`) and documentation are deliberately NOT
+# listed. The point of this repository's quality gate is that changes there are
+# judged by the checks, not by a human reading a diff. Listing everything here
+# would put human review back in front of exactly the work it is meant to
+# replace.
+#
+# Last match wins, so the specific paths follow the general ones.
+
+# The enforcement layer: the configuration that decides whether anything else
+# passes. If these could be edited without review, every other gate would be
+# advisory.
+/package.json                   @shunmd
+/pnpm-lock.yaml                 @shunmd
+/pnpm-workspace.yaml            @shunmd
+/mise.toml                      @shunmd
+/mise.lock                      @shunmd
+/tsconfig.json                  @shunmd
+/eslint.config.js               @shunmd
+/prettier.config.js             @shunmd
+/.prettierignore                @shunmd
+/vitest.config.ts               @shunmd
+/stryker.config.json            @shunmd
+/knip.jsonc                     @shunmd
+/.dependency-cruiser.json       @shunmd
+/.jscpd.json                    @shunmd
+/.editorconfig                  @shunmd
+/.gitattributes                 @shunmd
+
+# CI, repository settings, and the scripts that enforce policy.
+/.github/                       @shunmd
+/infra/                         @shunmd
+/scripts/                       @shunmd
+
+# Accepted exceptions to the dependency policy. Every entry here is a decision
+# to ship with a known advisory or a non-default licence, which is precisely
+# the kind of judgement a machine must not make alone.
+/infra/policy/                  @shunmd
+
+# The always-loaded agent instructions. A change here changes how every future
+# agent behaves in this repository.
+/AGENTS.md                      @shunmd
+/CLAUDE.md                      @shunmd

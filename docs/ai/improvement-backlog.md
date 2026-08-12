@@ -21,7 +21,97 @@ is not re-proposed every month.
 
 ## Open
 
-_(none yet)_
+These are the gaps that `docs/code-quality-gate.md` lists as `Not measured`.
+None of them is presented as covered anywhere, and none should be closed by
+weakening something else.
+
+### Add ShellCheck to the pinned toolchain
+
+**What:** add `shellcheck` to `[tools]` in `mise.toml` (which also requires
+regenerating `mise.lock`), then a `check:shell` script running
+`shellcheck scripts/*.sh` and wire it into `pnpm check`.
+
+**Why:** `scripts/secret-scan.sh` and `scripts/diff-upstream.sh` have no static
+analysis at all. ESLint does not read shell, so an unquoted expansion, a
+`set -e` that does not apply inside a pipeline, or a typo'd variable name is
+caught only by running the script on the path that happens to be exercised.
+Both scripts are in the enforcement layer.
+
+**Cost:** one more native binary to keep pinned and to re-lock on upgrade.
+ShellCheck also has opinionated style rules (SC2086 and friends) that will
+require a first pass of fixes.
+
+**Blocked on:** a human regenerating `mise.lock`, since `locked = true` means
+mise will not resolve a tool that has no committed checksum.
+
+### Add actionlint to the pinned toolchain
+
+**What:** add `actionlint` to `[tools]` in `mise.toml` and run it alongside
+`pnpm check:workflows`.
+
+**Why:** `scripts/lib/workflow-policy.ts` checks the security and hygiene
+properties this repository cares about, and deliberately nothing else. It does
+not know GitHub's schema, so a misspelled `runs-on`, an invalid `if:`
+expression, or a job referencing a `needs:` that does not exist still parses as
+valid YAML and fails at runtime instead of at `pnpm verify`.
+
+**Cost:** same as ShellCheck -- another pinned binary. Some overlap with the
+existing checks, though actionlint does not cover the sha-pinning or
+`persist-credentials` rules.
+
+**Blocked on:** the same `mise.lock` regeneration.
+
+### Add CodeQL for severity-classified static analysis
+
+**What:** a `.github/workflows/codeql.yml` running `github/codeql-action`
+init/analyze for `javascript-typescript`, and its job added to
+`required_status_checks` in `infra/github/rulesets/main.json`.
+
+**Why:** `Static Analysis: Critical / High Issue` is the one row in the quality
+gate table that has been `Not measured` since the beginning.
+`eslint-plugin-security` matches syntactic patterns in a single file; CodeQL
+does interprocedural taint tracking, which is a different class of finding. The
+repository is public, so CodeQL is free.
+
+**Cost:** a slower required check (a few minutes), and a second findings inbox
+in the GitHub Security tab rather than in `pnpm verify` output. Findings are
+severity-classified, which means deciding a severity threshold -- the first
+policy question in this repository that a `= 0` gate cannot express.
+
+**Blocked on:** the action must be pinned to a commit sha
+(`pnpm check:workflows` enforces this), and the sha has to be read from the
+upstream repository at the version being adopted.
+
+### Decompose `scripts/github-settings.ts`
+
+**What:** move its validation, normalisation and drift-comparison functions into
+`scripts/lib/github-settings-policy.ts`, leaving the API client, argument
+parsing and orchestration in the entry point. Then delete the two exemptions
+for it in `eslint.config.js`.
+
+**Why:** it is 1300 lines, it is the only file exempt from the entry-point size
+limits, and it is outside the coverage scope -- so the script that reconciles
+this repository's own branch protection has no tests. Its validation half is
+already pure and would be straightforward to cover.
+
+**Cost:** a large mechanical diff in a protected path, which is exactly the kind
+of change that is hard to review. Worth doing on its own, not alongside
+anything else.
+
+### Measure duplication on changed lines
+
+**What:** replace or supplement jscpd's whole-tree percentage with a
+diff-scoped measurement, so the `<= 3%` on new code in the standard gate can be
+reported honestly.
+
+**Why:** the current 2% whole-tree threshold is not the same metric. As the
+repository grows, a change can add a substantial clone while the overall
+percentage falls.
+
+**Cost:** no tool in the current toolchain does this. jscpd has no diff mode, so
+this needs either a wrapper that runs it against the merge base or a different
+tool -- and a wrapper that computes a percentage is itself enforcement-layer
+code that would need tests.
 
 ## Rejected
 

@@ -28,7 +28,7 @@ cannot execute yet.
 
 ## Static analysis and security checks
 
-The fast gate includes five checks beyond formatting, linting and types:
+The fast gate includes these checks beyond formatting, linting and types:
 
 - `pnpm deadcode` runs Knip for unused files, dependencies, exports and exported
   types. The entry points are explicit in `knip.jsonc`; do not add ignores just
@@ -41,12 +41,22 @@ The fast gate includes five checks beyond formatting, linting and types:
 - `pnpm lint` also runs selected `eslint-plugin-sonarjs` rules for cognitive
   complexity and structural duplication. This is local ESLint analysis, not a
   SonarQube server or a severity-ranked changed-code report.
-- `pnpm secret:scan` runs Gitleaks. With staged changes it scans the staged diff;
-  otherwise it scans the working tree. Do not store credentials or add broad
-  allowlists.
-- `pnpm test:coverage` keeps a starting floor of 80% for lines, functions,
-  branches and statements. Increase it when the generated project has measured
-  business logic; do not add meaningless tests to satisfy a number.
+- `pnpm secret:scan` runs Gitleaks twice: over the working tree, and over the
+  commit history. The second one is the one that matters -- deleting a committed
+  credential does not rotate it, and the key stays in every clone. It needs a
+  full clone, so it fails loudly in a shallow one rather than passing on the few
+  commits it can see. Do not store credentials or add broad allowlists.
+- `pnpm check:workflows` treats `.github/workflows/**` as reviewable code:
+  actions pinned to a commit sha, a timeout on every job, top-level
+  `permissions`, no `pull_request_target`, no `${{ }}` expression interpolated
+  into a `run:` block, and `persist-credentials: false` on every checkout.
+- `pnpm check:deps` fails on any `pnpm audit` advisory and on any licence
+  outside the allow list in `infra/policy/dependency-policy.json`. See
+  "Accepting a dependency exception" below.
+- `pnpm test:coverage` keeps a floor of 80% for lines, functions, branches and
+  statements, applied **per file** rather than across the repository, over
+  `src/**` and `scripts/lib/**`. Increase it when the generated project has
+  measured business logic; do not add meaningless tests to satisfy a number.
 - `pnpm test:mutation` runs StrykerJS separately from `pnpm verify`. It requires
   a mutation score of at least 80% and fails below 80%.
 
@@ -66,7 +76,12 @@ application start command and a critical user flow to exercise.
 SonarQube is intentionally not used. The repository uses `pnpm lint`, which
 includes selected `eslint-plugin-sonarjs` rules for cognitive complexity and
 structural duplication. It does not provide SonarQube's severity classification
-or changed-code duplication percentage.
+or changed-code duplication percentage. Nor does anything here do
+interprocedural taint analysis; the proposal to add CodeQL for that is in
+[`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md).
+
+Shell scripts under `scripts/` have no static analysis at all. ESLint does not
+read shell and ShellCheck is not in the pinned toolchain. Same backlog.
 
 ## AI-assisted change loop
 
@@ -106,6 +121,7 @@ approval for pull requests that change them:
 ```text
 eslint.config.js
 package.json
+pnpm-lock.yaml
 tsconfig.json
 prettier.config.js
 .prettierignore
@@ -113,22 +129,36 @@ vitest.config.ts
 stryker.config.json
 knip.jsonc
 .dependency-cruiser.json
+.jscpd.json
 mise.toml
 mise.lock
 pnpm-workspace.yaml
-.github/workflows/
-scripts/check-toolchain-age.ts
-scripts/secret-scan.sh
-scripts/github-settings.ts
-infra/github/
+.github/
+infra/
+scripts/
 ```
 
-The `guard-enforcement-layer` CI job checks these paths. Approval is expressed
-by the `toolchain` label or `TOOLCHAIN-CHANGE-APPROVED` in the pull request
-title. Proposed improvements belong in
+Two separate mechanisms cover these paths, and it matters which is which.
+
+The `guard-enforcement-layer` CI job records a **declaration of intent**:
+the `toolchain` label, or `TOOLCHAIN-CHANGE-APPROVED` in the pull request title.
+It stops the enforcement layer from being edited as an unnoticed side effect of
+ordinary work, and it puts the edit in the title where it is visible. It is not
+the approval -- the title and the label are both set by whoever opened the pull
+request, including an agent.
+
+The **approval** is [`.github/CODEOWNERS`](../.github/CODEOWNERS), which the
+`main` ruleset enforces as a required code-owner review on exactly these paths.
+An author cannot grant it to themselves. `require_last_push_approval` is on, so
+commits pushed after an approval need a fresh one.
+
+Proposed improvements belong in
 [`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md) until a human
 applies them. This boundary prevents ordinary changes from silently weakening
 their own checks.
+
+`src/` and `docs/` are deliberately absent from CODEOWNERS. Changes there are
+judged by the checks, which is the point of the whole arrangement.
 
 GitHub repository settings have a separate declarative source of truth under
 `infra/github/`. Validate it with `node scripts/github-settings.ts --check`;
@@ -180,6 +210,53 @@ allowBuilds:
 Both of these are decisions, not configuration chores. Note why in the commit
 message.
 
+`pnpm check:deps` then applies two further gates to whatever you added,
+including its transitive graph: no `pnpm audit` advisory, and no licence outside
+the allow list. Both are worth checking before you get attached to a package:
+
+```sh
+pnpm check:deps
+```
+
+`package.json` and `pnpm-lock.yaml` are protected paths, so adding a dependency
+needs the `toolchain` marker and a code-owner review. That is deliberate -- a
+new dependency is a supply-chain change, whoever wrote the diff.
+
+## Accepting a dependency exception
+
+Sometimes the right answer is to ship with a known finding: the advisory is not
+reachable from your code, or the licence is fine for a build-time tool. Record
+it in `infra/policy/dependency-policy.json` rather than lowering a threshold.
+
+```json
+{
+  "advisory": "GHSA-xxxx-xxxx-xxxx",
+  "package": "some-package",
+  "reason": "Reached only through <path>, which never receives untrusted input. No patched release exists yet.",
+  "owner": "who decided this",
+  "reviewBy": "2026-11-30"
+}
+```
+
+Four properties are enforced by the check itself, not by convention:
+
+- The exception names the **exact** finding. An advisory exception matches one
+  advisory id and one package name; a licence exception matches one package and
+  one licence. Nothing is exempted in general.
+- `reason` and `owner` are required. An exception with no stated reason fails to
+  parse.
+- `reviewBy` is required for advisories. Past that date the exception stops
+  suppressing and starts failing, so an accepted risk gets revisited instead of
+  becoming permanent.
+- An exception that no longer matches anything **fails**. Approvals for solved
+  problems cannot accumulate in the file.
+
+Licence exceptions have no expiry, because a package's licence does not drift
+quietly: the exception pins the licence too, so a change to it fails the check.
+
+`infra/policy/` is in CODEOWNERS. Accepting a known vulnerability is not a
+decision a machine makes alone.
+
 ## Updating the toolchain
 
 Node and pnpm are pinned to exact patch versions in `mise.toml`, mirrored in
@@ -208,20 +285,32 @@ Stay on the Active LTS line unless there is a reason not to.
 
 ## Updating dependencies
 
-There is no update bot in this template. Run updates deliberately:
+Dependabot proposes updates weekly for npm packages and GitHub Actions, grouped
+into one pull request per ecosystem rather than one per package. Its cooldown is
+set to the same 5 days as pnpm's, so it does not propose versions that
+`pnpm install` is then required to refuse. Nothing merges itself: every proposal
+still has to pass `pnpm verify`, the mutation job, and the code-owner review
+that `package.json` and `pnpm-lock.yaml` require.
+
+To update by hand:
 
 ```sh
 pnpm outdated        # what has moved
-pnpm update --latest # interactive-ish; review the diff before committing
+pnpm update --latest # review the diff before committing
 pnpm check
 ```
 
 The 5-day cooldown applies here too, which is the point: routine batch updates
 never pick up a package published in the last few days.
 
-`pnpm audit` is available but is not part of `pnpm check`. Advisory databases
-change without your code changing, so an audit failure would make CI red for
-reasons unrelated to the commit under test. Run it on a schedule you control.
+`pnpm audit` **is** part of `pnpm check`, via `pnpm check:deps`. This is a
+deliberate reversal of the earlier position that an advisory database changing
+without your code changing would make CI red for unrelated reasons. It does, and
+that is the correct outcome: a newly published advisory means the dependency
+graph you already merged is now known to be vulnerable, and a gate that only
+fires on commits you happen to make will not tell you. The escape hatch is a
+recorded exception with a re-evaluation date, not a check that runs on someone's
+own schedule and is therefore never run.
 
 ## Building and publishing
 

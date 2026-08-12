@@ -1,0 +1,53 @@
+{
+  "licenses": {
+    "allowed": [
+      "0BSD",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "BlueOak-1.0.0",
+      "CC0-1.0",
+      "ISC",
+      "MIT",
+      "Python-2.0",
+      "Unlicense"
+    ],
+    "exceptions": [
+      {
+        "package": "eslint-plugin-sonarjs",
+        "license": "LGPL-3.0-only",
+        "reason": "Development-time lint plugin. It is executed as a separate tool and no part of it is linked into or distributed with this project's output, so the LGPL's linking obligations are not triggered.",
+        "owner": "repository maintainer"
+      },
+      {
+        "package": "lightningcss",
+        "license": "MPL-2.0",
+        "reason": "Transitive build-time dependency of Vitest. MPL-2.0 is file-level copyleft and its source is unmodified, so redistribution obligations do not extend to this project's own files.",
+        "owner": "repository maintainer"
+      },
+      {
+        "package": "lightningcss-linux-x64-gnu",
+        "license": "MPL-2.0",
+        "reason": "Platform binary for lightningcss; same assessment as lightningcss.",
+        "owner": "repository maintainer"
+      },
+      {
+        "package": "caniuse-lite",
+        "license": "CC-BY-4.0",
+        "reason": "Browser support data set, not code. CC-BY-4.0 requires attribution only, which the package's own metadata carries.",
+        "owner": "repository maintainer"
+      }
+    ]
+  },
+  "vulnerabilities": {
+    "exceptions": [
+      {
+        "advisory": "GHSA-q8mj-m7cp-5q26",
+        "package": "qs",
+        "reason": "Denial of service in qs.stringify, reached only through @stryker-mutator/core's HTTP client during mutation testing. This repository never passes attacker-controlled input to it, and the package is a devDependency that is not shipped. No patched release is reachable without waiting for StrykerJS to update typed-rest-client.",
+        "owner": "repository maintainer",
+        "reviewBy": "2026-11-30"
+      }
+    ]
+  }
+}

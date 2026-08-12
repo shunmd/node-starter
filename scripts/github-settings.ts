@@ -42,8 +42,16 @@ const repositoryStringFields = new Set([
 const rulesetRuleTypes = new Set([
   'deletion',
   'non_fast_forward',
+  'required_linear_history',
   'pull_request',
   'required_status_checks',
+]);
+
+/** Ruleset rules that are switches: present means enforced, no parameters. */
+const parameterlessRuleTypes = new Set([
+  'deletion',
+  'non_fast_forward',
+  'required_linear_history',
 ]);
 
 const pullRequestRuleFields = [
@@ -336,7 +344,7 @@ function validateRulesetRule(
     errors.push(`${path} has an unsupported type`);
     return;
   }
-  if (rule['type'] === 'deletion' || rule['type'] === 'non_fast_forward') {
+  if (parameterlessRuleTypes.has(rule['type'])) {
     assertAllowedKeys(rule, new Set(['type']), path, errors);
     return;
   }

@@ -18,7 +18,12 @@ historical rationale.
 | Dead code and dependency use         | `knip.jsonc`                               |
 | Dependency boundaries                | `.dependency-cruiser.json`                 |
 | Secret detection                     | `scripts/secret-scan.sh`                   |
-| Toolchain age and coherence          | `scripts/check-toolchain-age.ts`           |
+| Toolchain age and coherence          | `scripts/lib/toolchain-policy.ts`          |
+| Dependency vulnerabilities, licences | `scripts/lib/dependency-policy.ts`         |
+| Accepted dependency exceptions       | `infra/policy/dependency-policy.json`      |
+| Workflow (CI) policy                 | `scripts/lib/workflow-policy.ts`           |
+| Dependency update proposals          | `.github/dependabot.yml`                   |
+| Human approval boundary              | `.github/CODEOWNERS`                       |
 | CI execution                         | `.github/workflows/ci.yml`                 |
 | GitHub repository desired state      | `infra/github/*.json`                      |
 | GitHub settings API reconciliation   | `scripts/github-settings.ts`               |
@@ -28,6 +33,36 @@ The standard checks share `pnpm verify`; Mutation Testing runs through the
 required `pnpm test:mutation` job. `pnpm check` is the compatibility alias for
 `pnpm verify`. A rule that a tool can enforce belongs in that tool's
 configuration, not in an agent instruction or a duplicate policy paragraph.
+
+## The enforcement scripts
+
+`scripts/` is split by testability, because the scripts are what decides
+whether everything else passes, and an untested gate is not a gate.
+
+| Layer          | Contents                                    | Verified by                            |
+| -------------- | ------------------------------------------- | -------------------------------------- |
+| `scripts/lib/` | Every pass/fail decision, as pure functions | Per-file coverage and mutation testing |
+| `scripts/*.ts` | argv, file and network I/O, printing, exit  | Running them in `pnpm verify` and CI   |
+
+The dependency runs one way -- `.dependency-cruiser.json` forbids a library
+module from importing an entry point, since importing one would execute its
+top-level `main()`. ESLint caps the entry points at 120 lines so logic cannot
+migrate there to escape the coverage scope. `scripts/github-settings.ts`
+predates the split and is exempt from both; the proposal to decompose it is in
+`docs/ai/improvement-backlog.md`.
+
+## The human approval boundary
+
+Two mechanisms, doing different jobs. The CI `guard enforcement layer` job
+records a _declaration of intent_: the pull request title or label says the
+enforcement layer is being changed on purpose. Both are set by whoever opened
+the pull request, so neither is an approval. The approval is
+`.github/CODEOWNERS`, enforced by the `main` ruleset as a required code-owner
+review, which an author cannot grant themselves.
+
+`src/` and `docs/` are deliberately absent from CODEOWNERS. Changes there are
+judged by the checks; requiring a human to read them would restore the review
+this repository exists to remove.
 
 ## Documentation ownership
 

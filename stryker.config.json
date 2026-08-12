@@ -5,7 +5,12 @@
   "vitest": {
     "configFile": "vitest.config.ts"
   },
-  "mutate": ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/*.spec.ts"],
+  "mutate": [
+    "src/**/*.ts",
+    "scripts/lib/**/*.ts",
+    "!**/*.test.ts",
+    "!**/*.spec.ts"
+  ],
   "reporters": ["clear-text", "progress", "html"],
   "thresholds": {
     "high": 80,

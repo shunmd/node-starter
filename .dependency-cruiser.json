@@ -23,9 +23,73 @@
       "severity": "error",
       "from": {},
       "to": { "couldNotResolve": true }
+    },
+    {
+      "name": "no-orphans",
+      "comment": "A module nothing imports and nothing runs is dead weight that still has to be reviewed, type-checked and kept compiling. Knip finds unused files it can trace from an entry point; this catches the ones that are reachable from nowhere at all. Type declarations and config files are legitimately orphaned.",
+      "severity": "error",
+      "from": {
+        "orphan": true,
+        "pathNot": [
+          "\\.d\\.ts$",
+          "\\.(test|spec)\\.[^/]+$",
+          "(^|/)\\.[^/]+\\.(js|cjs|mjs|ts|json)$",
+          "\\.config\\.(js|cjs|mjs|ts)$"
+        ]
+      },
+      "to": {}
+    },
+    {
+      "name": "no-production-to-dev-dependency",
+      "comment": "src/ is the code this project ships. A devDependency is present on a developer's machine and in CI, and absent everywhere else, so importing one from src/ produces a module that works in every test and fails on first run. scripts/ is exempt: it only ever runs where devDependencies are installed.",
+      "severity": "error",
+      "from": { "path": "^src/", "pathNot": "\\.(test|spec)\\.ts$" },
+      "to": { "dependencyTypes": ["npm-dev"] }
+    },
+    {
+      "name": "no-deprecated-core",
+      "comment": "Node core modules that have been deprecated. They keep working until the release that removes them, at which point the failure is a runtime crash rather than a build error.",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "dependencyTypes": ["core"],
+        "path": "^(punycode|domain|sys|constants|_linklist|_stream_wrap)$"
+      }
+    },
+    {
+      "name": "no-deprecated-npm",
+      "comment": "Depending on a package its own author has marked deprecated means depending on code that will not be fixed.",
+      "severity": "error",
+      "from": {},
+      "to": { "dependencyTypes": ["deprecated"] }
+    },
+    {
+      "name": "no-duplicate-dependency-types",
+      "comment": "A package listed as both a dependency and a devDependency resolves differently depending on which manifest wins, which is a difference between CI and production that no test can see.",
+      "severity": "error",
+      "from": {},
+      "to": {
+        "moreThanOneDependencyType": true,
+        "dependencyTypesNot": ["type-only"]
+      }
+    },
+    {
+      "name": "not-to-spec",
+      "comment": "Test files must not be imported by anything. A shared helper belongs in a plainly named module, not in a file the test runner also collects.",
+      "severity": "error",
+      "from": {},
+      "to": { "path": "\\.(test|spec)\\.[^/]+$" }
+    },
+    {
+      "name": "no-lib-to-entry-point",
+      "comment": "scripts/lib/ holds the tested decision logic and scripts/*.ts are the argv-and-exit shells around it. The dependency runs one way: a library module that imports an entry point would execute that entry point's top-level main() as a side effect of being imported by a test.",
+      "severity": "error",
+      "from": { "path": "^scripts/lib/" },
+      "to": { "path": "^scripts/[^/]+\\.ts$" }
     }
   ],
   "options": {
-    "doNotFollow": "node_modules"
+    "doNotFollow": "node_modules",
+    "tsPreCompilationDeps": true
   }
 }

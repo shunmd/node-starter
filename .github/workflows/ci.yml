@@ -26,6 +26,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # `pnpm secret:scan` scans the commit history, not only the working
+          # tree: a credential that was committed and then deleted is still
+          # leaked, and a shallow clone cannot see it.
+          fetch-depth: 0
+          persist-credentials: false
 
       # Installs exactly the versions pinned in mise.toml, verified against
       # mise.lock. CI therefore runs the same toolchain as a laptop, from the
@@ -52,6 +58,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
         with:
@@ -71,6 +79,15 @@ jobs:
   #
   # To make an approved change: put `TOOLCHAIN-CHANGE-APPROVED` in the pull
   # request title, or add the `toolchain` label.
+  #
+  # Read what this job is and is not. The pull request title and, for anyone
+  # with write access, the label are both set by whoever opened the pull
+  # request -- including an agent. So this job records a *declaration of
+  # intent*: it stops the enforcement layer from being edited as an unnoticed
+  # side effect of ordinary work, and it makes the edit visible in the title.
+  # It is not the approval itself. The approval is `.github/CODEOWNERS`, which
+  # the `main` ruleset enforces as a required code-owner review on exactly
+  # these paths, and which the pull request author cannot grant themselves.
   guard-enforcement-layer:
     name: guard enforcement layer
     if: github.event_name == 'pull_request'
@@ -80,6 +97,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect changes to protected paths
         env:
@@ -89,7 +107,7 @@ jobs:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
-          protected_paths='^(package\.json|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.github/workflows/|infra/github/|scripts/(check-toolchain-age\.ts|secret-scan\.sh|github-settings\.ts))'
+          protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.github/(workflows/|CODEOWNERS|dependabot\.yml)|infra/|scripts/)'
           changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
 
           if [ -z "${changed}" ]; then

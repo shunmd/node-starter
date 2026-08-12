@@ -141,6 +141,25 @@ export default tseslint.config(
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
 
+      // `console` is an output channel with no level, no structure and no
+      // destination. In library and application code it is nearly always a
+      // debugging leftover; the operational scripts below, whose interface is
+      // stdout and stderr, turn it back on.
+      'no-console': 'error',
+
+      // AGENTS.md says to avoid barrel files. The mechanically checkable half
+      // of that is the re-export: `export * from` hides where a name comes
+      // from, defeats dead-code analysis, and turns one import into a whole
+      // subtree at runtime. Re-export the specific names instead.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message:
+            'Barrel re-exports (`export * from`) hide the origin of a name and defeat dead-code analysis. Export the specific names instead.',
+        },
+      ],
+
       // Names of types are structural information, so they are worth
       // constraining. Broader naming-convention configs mostly generate churn.
       '@typescript-eslint/naming-convention': [
@@ -202,6 +221,53 @@ export default tseslint.config(
       // Tests deliberately construct wrong values to prove they are rejected.
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+
+      // The three ways a test suite reports success without testing anything.
+      // Each of them is invisible in a green build, which is precisely the
+      // signal this repository relies on instead of a human reading the diff:
+      //
+      //  - a committed `.only` silently skips every other test in the file
+      //  - a `.skip` left behind after debugging never runs again
+      //  - a test body with no assertion passes no matter what the code does
+      //
+      // Stated explicitly rather than inherited, because a preset that
+      // downgraded any of them to a warning would pass `--max-warnings 0`
+      // without anyone noticing.
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/expect-expect': [
+        'error',
+        // fast-check's assertions run inside the property callback, so the
+        // call that proves the test asserted something is fc.assert itself.
+        {
+          assertFunctionNames: [
+            'expect',
+            'expectTypeOf',
+            'assert',
+            'fc.assert',
+          ],
+        },
+      ],
+      'vitest/valid-expect': 'error',
+      'vitest/no-identical-title': 'error',
+      'vitest/no-conditional-expect': 'error',
+      // Behaviour, not implementation: a name that says what should happen is
+      // the only part of a failing test that is readable from a CI log.
+      'vitest/valid-title': 'error',
+
+      // The size limits exist to keep production code composable. A test file
+      // is a flat list of cases inside a `describe` callback, so both rules
+      // measure the number of cases rather than anything about the design, and
+      // obeying them would mean splitting one subject's tests across files.
+      'max-lines': 'off',
+      'max-lines-per-function': 'off',
+
+      // A test asserts on literal expected values, and that is the point: the
+      // third occurrence of `'MIT'` is not a missing abstraction, it is three
+      // cases that happen to share an input. Extracting them into constants
+      // makes a failing test harder to read, which is the opposite of what
+      // this rule is for elsewhere.
+      'sonarjs/no-duplicate-string': 'off',
     },
   },
 
@@ -213,11 +279,6 @@ export default tseslint.config(
       // their interface, and printing to stderr is how they report.
       'n/no-process-exit': 'off',
       'no-console': 'off',
-      // Operational scripts read top-to-bottom as a single procedure; the
-      // size limits below exist to keep library code composable, which does
-      // not apply here.
-      'max-lines': 'off',
-      'max-lines-per-function': 'off',
       // These scripts build file and RegExp paths from repository-local
       // config (mise.toml paths, ignore patterns) that a maintainer, not an
       // attacker, controls. The literal-argument checks exist for
@@ -227,6 +288,50 @@ export default tseslint.config(
       'security/detect-non-literal-regexp': 'off',
     },
   },
+
+  // --- Command-line entry points --------------------------------------------
+  //
+  // Only the files directly under scripts/ are entry points. They parse argv,
+  // do I/O, print, and exit; the decisions they print live in scripts/lib/,
+  // which is covered by the per-file coverage threshold in vitest.config.ts.
+  //
+  // That split is the reason for the line cap below rather than the `off` this
+  // used to be. An entry point is outside the coverage scope, so without a
+  // limit it is the obvious place to put logic that does not want to be
+  // tested. 120 lines is enough for argv, I/O and reporting, and not enough to
+  // hide a policy in.
+  {
+    files: ['scripts/*.ts'],
+    rules: {
+      'max-lines': [
+        'error',
+        { max: 120, skipBlankLines: true, skipComments: true },
+      ],
+      'max-lines-per-function': [
+        'error',
+        { max: 60, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+
+  // The one file that predates the split above. Its API client, drift
+  // comparison and apply logic are still in the entry point, so it is neither
+  // size-limited nor covered. docs/ai/improvement-backlog.md carries the
+  // proposal to decompose it into scripts/lib/; this exemption is written here,
+  // in the enforcement layer, so it stays visible until that happens.
+  {
+    files: ['scripts/github-settings.ts'],
+    rules: {
+      'max-lines': 'off',
+      'max-lines-per-function': 'off',
+    },
+  },
+
+  // --- Shell scripts are not linted here ------------------------------------
+  //
+  // scripts/*.sh has no static analysis at all in this toolchain: ESLint does
+  // not read shell, and ShellCheck is a native binary that would have to be
+  // added to mise.toml and mise.lock. See docs/ai/improvement-backlog.md.
 
   // --- Plain JS (config files) ----------------------------------------------
   {
