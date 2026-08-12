@@ -41,27 +41,27 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 別の測定基盤が必要、`Pending`は導入判断または安全な依存解決が残っている
 項目を示す。未測定・保留の項目をPASS扱いにして隠してはならない。
 
-| Category        | Metric                       | Gate                 | このリポジトリ                      |
-| --------------- | ---------------------------- | -------------------- | ----------------------------------- |
-| Formatting      | Formatter Error              | `= 0`                | Active: Prettier                    |
-| Lint            | Lint Error / Warning         | `= 0`                | Active: ESLint + `--max-warnings 0` |
-| Type Safety     | Type Error                   | `= 0`                | Active: `tsc --noEmit`              |
-| Static Analysis | Critical / High Issue        | `= 0`                | Not measured: SonarQube not adopted |
-| Complexity      | Cyclomatic Complexity        | `<= 10 / function`   | Active: ESLint                      |
-| Complexity      | Cognitive Complexity         | `<= 15 / function`   | Active: ESLint SonarJS rules        |
-| Duplication     | Repeated Branch / Function   | `= 0`                | Active: ESLint SonarJS rules        |
-| Duplication     | Duplicated Lines on New Code | `<= 3%`              | Not measured: no line-diff tool     |
-| Dead Code       | Unused File                  | `= 0`                | Active: Knip                        |
-| Dead Code       | Unused Dependency            | `= 0`                | Active: Knip                        |
-| Dead Code       | Unused Export / Type         | `= 0`                | Active: Knip                        |
-| Architecture    | Circular Dependency          | `= 0`                | Active: dependency-cruiser          |
-| Architecture    | Dependency Rule Violation    | `= 0`                | Active: dependency-cruiser rules    |
-| Security        | Secret Finding               | `= 0`                | Active: Gitleaks                    |
-| Test            | Failed Test                  | `= 0`                | Active: Vitest                      |
-| Coverage        | Line Coverage                | `>= 80%`             | Active: Vitest coverage             |
-| Coverage        | Branch Coverage              | `>= 80%`             | Active: Vitest coverage             |
-| Coverage        | Function Coverage            | `>= 80%`             | Active: Vitest coverage             |
-| Mutation        | Mutation Score               | recommended `>= 80%` | Pending: StrykerJS trust approval   |
+| Category        | Metric                       | Gate               | このリポジトリ                      |
+| --------------- | ---------------------------- | ------------------ | ----------------------------------- |
+| Formatting      | Formatter Error              | `= 0`              | Active: Prettier                    |
+| Lint            | Lint Error / Warning         | `= 0`              | Active: ESLint + `--max-warnings 0` |
+| Type Safety     | Type Error                   | `= 0`              | Active: `tsc --noEmit`              |
+| Static Analysis | Critical / High Issue        | `= 0`              | Not measured: SonarQube not adopted |
+| Complexity      | Cyclomatic Complexity        | `<= 10 / function` | Active: ESLint                      |
+| Complexity      | Cognitive Complexity         | `<= 15 / function` | Active: ESLint SonarJS rules        |
+| Duplication     | Repeated Branch / Function   | `= 0`              | Active: ESLint SonarJS rules        |
+| Duplication     | Duplicated Lines on New Code | `<= 3%`            | Not measured: no line-diff tool     |
+| Dead Code       | Unused File                  | `= 0`              | Active: Knip                        |
+| Dead Code       | Unused Dependency            | `= 0`              | Active: Knip                        |
+| Dead Code       | Unused Export / Type         | `= 0`              | Active: Knip                        |
+| Architecture    | Circular Dependency          | `= 0`              | Active: dependency-cruiser          |
+| Architecture    | Dependency Rule Violation    | `= 0`              | Active: dependency-cruiser rules    |
+| Security        | Secret Finding               | `= 0`              | Active: Gitleaks                    |
+| Test            | Failed Test                  | `= 0`              | Active: Vitest                      |
+| Coverage        | Line Coverage                | `>= 80%`           | Active: Vitest coverage             |
+| Coverage        | Branch Coverage              | `>= 80%`           | Active: Vitest coverage             |
+| Coverage        | Function Coverage            | `>= 80%`           | Active: Vitest coverage             |
+| Mutation        | Mutation Score               | `>= 80%`           | Active: StrykerJS (separate)        |
 
 いずれかの必須項目がGateを満たさない場合、Quality GateはFAILである。
 
@@ -90,10 +90,11 @@ Toolchain policy
 CIは同じ `pnpm verify` を実行する。`pnpm check` は互換エイリアスであり、
 別の品質基準ではない。
 
-現在の `verify` がPASSすることは、上表のActive項目を満たしたことを示す。
-「Not measured」はPASSでもFAILでもなく、別の測定基盤を追加しない限り判定
-不能である。リポジトリの標準ゲートに含めない項目を、実施済みのように表示
-してはならない。
+現在の `verify` がPASSすることは、通常ゲートに含まれるActive項目を満たした
+ことを示す。Mutation TestingはActiveだが実行時間のため別ゲートであり、完全
+なQuality Gate判定には`pnpm test:mutation`のPASSも必要である。「Not measured」
+はPASSでもFAILでもなく、別の測定基盤を追加しない限り判定不能である。
+リポジトリの標準ゲートに含めない項目を、実施済みのように表示してはならない。
 
 ## 4. 個別基準
 
@@ -242,12 +243,18 @@ Mutation Testingはテストコード自体の検出能力を測る。通常のv
 推奨基準はMutation Score `>= 80%`、`60%`未満は改善対象とする。実行時間が
 Pull Requestの許容範囲に収まる場合だけ、必須Gateへの昇格を検討する。
 
-StrykerJSは通常の`verify`とは分離し、`test:mutation`と別CI Jobで実行する。
-ただし、現行のStrykerJS CoreはBabel経由で`semver@6.3.1`を引き込み、既存の
-`trustPolicy: no-downgrade`により拒否される。導入にはこの正確なバージョン
-だけを`trustPolicyExclude`へ追加する供給網例外が必要であり、明示的な人間の
-承認なしには追加しない。承認後にStryker設定、`test:mutation`、Mutation
-Scoreの閾値を追加する。
+StrykerJSは通常の`verify`とは分離し、`test:mutation`を別ゲートとして実行する。
+現行のStrykerJS CoreはBabel経由で`semver@6.3.1`を引き込むため、既存の
+`trustPolicy: no-downgrade`に対して、この正確なバージョンだけを
+`trustPolicyExclude`へ追加する供給網例外を登録している。例外は全体の信頼
+ポリシーを無効化せず、`semver@6.3.1`だけを対象外にする。
+
+```sh
+pnpm test:mutation
+```
+
+Mutation Scoreは`>= 80%`を必須とし、`60%`未満でコマンドをFAILにする。
+現行のplaceholder実装では9 mutant中9件を殺し、100%を確認している。
 
 ## 5. CIの実行方針
 

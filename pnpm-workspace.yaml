@@ -43,6 +43,12 @@ minimumReleaseAgeExclude: []
 # the lockfile recorded (e.g. provenance/signature present before, absent now).
 trustPolicy: no-downgrade
 
+# Human-approved, exact exception required by StrykerJS's Babel instrumenter.
+# Remove this entry when the upstream dependency chain no longer requires
+# semver 6.3.1 or its registry trust evidence is repaired.
+trustPolicyExclude:
+  - 'semver@6.3.1'
+
 # --- Package manager identity ------------------------------------------------
 
 # If the running pnpm does not match devEngines.packageManager in package.json,

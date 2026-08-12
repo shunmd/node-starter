@@ -76,6 +76,7 @@ TypeScript language features, while `typescript` in this repository and
 | `pnpm typecheck`       | `tsc --noEmit`.                                                                           |
 | `pnpm test`            | Vitest, once.                                                                             |
 | `pnpm test:coverage`   | Vitest with the 80% lines/functions/branches/statements floor.                            |
+| `pnpm test:mutation`   | StrykerJS mutation testing with an 80% score floor, separate from `pnpm verify`.          |
 | `pnpm deadcode`        | Knip unused files, dependencies and exports.                                              |
 | `pnpm architecture`    | dependency-cruiser circular and production-to-test checks.                                |
 | `pnpm secret:scan`     | Gitleaks scan of staged content or the working tree.                                      |

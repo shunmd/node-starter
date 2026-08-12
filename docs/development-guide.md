@@ -43,12 +43,15 @@ The fast gate includes four checks beyond formatting, linting and types:
 - `pnpm test:coverage` keeps a starting floor of 80% for lines, functions,
   branches and statements. Increase it when the generated project has measured
   business logic; do not add meaningless tests to satisfy a number.
+- `pnpm test:mutation` runs StrykerJS separately from `pnpm verify`. It requires
+  a mutation score of at least 80% and fails below 60%.
 
 Mutation testing is intentionally a separate, heavy check and is not part of
-`pnpm verify`. StrykerJS requires an exact `trustPolicyExclude` entry for
-`semver@6.3.1` through its Babel instrumenter chain. That is a supply-chain
-exception, so it is not added automatically. After explicit approval, add the
-exact entry, configure Stryker, and add `test:mutation` as a separate job.
+`pnpm verify`. StrykerJS is configured with the Vitest runner. Its Babel
+instrumenter chain requires the exact `trustPolicyExclude` entry for
+`semver@6.3.1`; this is a documented, human-approved supply-chain exception.
+The exception must be removed when the upstream dependency chain no longer
+requires that version or its trust evidence is repaired.
 
 This is a Node template rather than a web application, so Playwright is not
 installed. A generated web application should add it only after it has an
