@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { greet } from './index.ts';
@@ -13,5 +14,22 @@ describe('greet', () => {
 
   it('returns undefined for an unknown language', () => {
     expect(greet('xx')).toBeUndefined();
+  });
+
+  it('echoes the requested language back when known', () => {
+    fc.assert(
+      fc.property(fc.constantFrom('en', 'ja'), (language) => {
+        expect(greet(language)?.language).toBe(language);
+      }),
+    );
+  });
+
+  it('never throws and only returns undefined or a matching greeting', () => {
+    fc.assert(
+      fc.property(fc.string(), (language) => {
+        const result = greet(language);
+        expect(result === undefined || result.language === language).toBe(true);
+      }),
+    );
   });
 });
