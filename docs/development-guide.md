@@ -117,6 +117,8 @@ pnpm-workspace.yaml
 .github/workflows/
 scripts/check-toolchain-age.ts
 scripts/secret-scan.sh
+scripts/github-settings.ts
+infra/github/
 ```
 
 The `guard-enforcement-layer` CI job checks these paths. Approval is expressed
@@ -125,6 +127,13 @@ title. Proposed improvements belong in
 [`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md) until a human
 applies them. This boundary prevents ordinary changes from silently weakening
 their own checks.
+
+GitHub repository settings have a separate declarative source of truth under
+`infra/github/`. Validate it with `node scripts/github-settings.ts --check`;
+compare it with the live repository using `node scripts/github-settings.ts
+--check --remote`. Applying the settings
+is a protected `workflow_dispatch` operation on `main` or an explicitly opted-in
+local command. The script never manages secret values.
 
 ## Adding a dependency
 

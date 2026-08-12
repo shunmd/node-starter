@@ -207,8 +207,8 @@ Work through this before your first real commit.
 - [ ] `LICENSE` — add one if this is going to be shared.
 - [ ] Decide whether you need a build step
       ([how](docs/development-guide.md#building-and-publishing)).
-- [ ] Enable branch protection on `main` requiring the `check` and `mutation`
-      jobs, so the gate is not merely advisory.
+- [ ] Run `node scripts/github-settings.ts --check` and configure the protected
+      `workflow_dispatch` apply path for the GitHub settings in `infra/github/`.
 
 ## Layout
 
@@ -235,7 +235,13 @@ Work through this before your first real commit.
 ├── .gitattributes         # Line endings; marks lockfiles as generated.
 ├── .prettierignore        # Generated output and lockfiles.
 ├── .github/workflows/
-│   └── ci.yml             # Runs the standard and mutation gates; guards enforcement.
+│   ├── ci.yml             # Runs the standard and mutation gates; guards enforcement.
+│   └── github-settings.yml # Validates and detects drift in GitHub settings.
+├── infra/github/
+│   ├── repository-settings.json # Repository settings desired state.
+│   ├── rulesets/main.json       # Main branch ruleset and required checks.
+│   ├── environments/production.json # Production environment policy.
+│   └── secrets-manifest.json    # Secret names only; never secret values.
 ├── scripts/
 │   ├── check-toolchain-age.ts  # 5-day policy for Node/pnpm; pin coherence.
 │   ├── diff-upstream.sh        # Compare this project against the template.
