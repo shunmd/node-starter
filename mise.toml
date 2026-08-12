@@ -1,0 +1,35 @@
+# Toolchain pins. This file is the single source of truth for which binaries
+# exist on PATH, both locally and in CI (see .github/workflows/ci.yml).
+#
+# Versions are pinned to the exact patch on purpose: `mise install` must produce
+# a byte-identical toolchain for every developer and every CI run.
+#
+# To change a version, follow docs/development-guide.md#updating-the-toolchain.
+# `pnpm check` fails if a pinned version was published less than 5 days ago.
+
+min_version = "2025.1.0"
+
+[tools]
+# Node.js 24.x is the Active LTS line ("Krypton").
+node = "24.19.0"
+# pnpm is installed by mise so that a working pnpm exists before any
+# package.json is read. devEngines.packageManager in package.json must declare
+# the same version; `pnpm check` enforces that they agree.
+pnpm = "11.20.0"
+# Gitleaks is pinned as a native CLI because secret scanning must also cover
+# files that are not imported by Node. 8.29.1 is used while 8.30.1 has a
+# reported false-negative regression in its default rules.
+gitleaks = "8.29.1"
+
+[env]
+# Makes locally installed CLIs (eslint, prettier, vitest, tsc) runnable
+# directly, without a `pnpm exec` prefix.
+_.path = ["{{config_root}}/node_modules/.bin"]
+
+[settings]
+# Record resolved versions + checksums in mise.lock so tool downloads are
+# verified, not just version-matched. mise.lock is committed.
+lockfile = true
+# Never resolve a missing platform entry during install; use only the
+# checksummed URLs already committed in mise.lock.
+locked = true

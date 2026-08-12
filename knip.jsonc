@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": ["src/index.ts", "scripts/diff-upstream.sh"],
+  "project": ["src/**/*.ts", "scripts/**/*.ts", "*.config.js", "*.config.ts"],
+  "include": ["files", "dependencies", "exports", "types"],
+  "includeEntryExports": true,
+  "treatConfigHintsAsErrors": true,
+}

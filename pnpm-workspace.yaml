@@ -1,0 +1,66 @@
+# pnpm settings live here, not in .npmrc.
+#
+# Since pnpm 11, pnpm no longer reads non-auth settings from .npmrc; this file
+# (or ~/.config/pnpm/config.yaml) is the settings home. This repository is NOT a
+# monorepo -- there is intentionally no `packages:` key. The file exists purely
+# to carry the settings below.
+#
+# Every value here is deliberately different from, or deliberately equal to, a
+# pnpm default. Do not delete a line assuming "that's the default anyway":
+# several defaults below are intentionally re-stated because the whole
+# supply-chain policy depends on them.
+
+# --- Release cooldown (the "5 day" policy) -----------------------------------
+
+# Minutes a version must have been public before pnpm may resolve it.
+# 7200 minutes = 5 days. pnpm's own default is 1440 (1 day).
+# This applies to ALL npm dependencies, including transitive ones.
+minimumReleaseAge: 7200
+
+# THIS LINE IS LOAD-BEARING. Without it, pnpm runs the cooldown in "loose"
+# mode: when resolution can only satisfy a range with an immature version, pnpm
+# silently appends that version to minimumReleaseAgeExclude below and installs
+# it anyway. With strict mode:
+#   - interactive terminal -> pnpm prompts before allowing the exception
+#   - CI or any non-TTY    -> pnpm aborts the install
+# A cooldown without this flag is a logging feature, not a control.
+minimumReleaseAgeStrict: true
+
+# pnpm's default is `true`: a package whose registry metadata carries no publish
+# time is treated as mature and installed. That is a bypass. Fail closed
+# instead -- no timestamp, no install.
+minimumReleaseAgeIgnoreMissingTime: false
+
+# Approved exceptions to the cooldown, as `name@version` (a bare `name` would
+# exempt every version of that package forever -- avoid it). Each entry is a
+# deliberate decision to install something younger than 5 days, normally to take
+# an urgent security fix. Entries should be removed once the version matures.
+minimumReleaseAgeExclude: []
+
+# --- Registry trust ----------------------------------------------------------
+
+# Refuse to install a package whose registry trust signals got weaker than what
+# the lockfile recorded (e.g. provenance/signature present before, absent now).
+trustPolicy: no-downgrade
+
+# Human-approved, exact exception required by StrykerJS's Babel instrumenter.
+# Remove this entry when the upstream dependency chain no longer requires
+# semver 6.3.1 or its registry trust evidence is repaired.
+trustPolicyExclude:
+  - 'semver@6.3.1'
+
+# --- Package manager identity ------------------------------------------------
+
+# If the running pnpm does not match devEngines.packageManager in package.json,
+# fail loudly instead of silently downloading a different pnpm. Combined with
+# the mise pin, this means exactly one pnpm version can ever run in this repo.
+pmOnFail: error
+
+# --- Install-time script execution -------------------------------------------
+
+# Dependency lifecycle scripts (postinstall etc.) are the primary payload
+# delivery route in npm supply-chain attacks. Empty map = none may run.
+# Adding a package here is an explicit, reviewable decision.
+# pnpm's strictDepBuilds default (true) turns a blocked build into an error
+# rather than a warning, so this cannot rot silently.
+allowBuilds: {}

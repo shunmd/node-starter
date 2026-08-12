@@ -1,0 +1,10 @@
+# Normalise line endings so a Windows checkout cannot make `prettier --check`
+# fail for everyone else.
+* text=auto eol=lf
+
+*.sh text eol=lf
+
+# Lockfiles are generated: keep them out of diffs and out of merge conflicts
+# that a human would resolve wrongly. Regenerate instead of hand-merging.
+pnpm-lock.yaml linguist-generated=true -diff
+mise.lock linguist-generated=true -diff

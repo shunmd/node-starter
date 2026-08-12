@@ -1,0 +1,8 @@
+# Generated output
+dist/
+coverage/
+
+# Lockfiles are written by their own tools; reformatting them creates noise and
+# can break checksum-sensitive parsing.
+pnpm-lock.yaml
+mise.lock

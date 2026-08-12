@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    /* Environment: Node 24 LTS, ESM only. */
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    /* This template does not emit. A project that needs a build adds a
+       tsconfig.build.json; see docs/development-guide.md. */
+    "noEmit": true,
+
+    /* --- Strictness ------------------------------------------------------ */
+    /* `strict` implies noImplicitAny, strictNullChecks, strictFunctionTypes,
+       strictBindCallApply, strictPropertyInitialization, noImplicitThis,
+       useUnknownInCatchVariables and alwaysStrict. The options below are the
+       ones `strict` does NOT turn on. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true,
+
+    /* Unused locals/parameters are deliberately NOT enabled here.
+       @typescript-eslint/no-unused-vars owns that check: it understands the
+       `_`-prefix convention and reports through the same channel as every
+       other lint rule. Enabling both means two tools reporting one problem
+       with different escape hatches. */
+    // "noUnusedLocals": false,
+    // "noUnusedParameters": false,
+
+    /* --- Module / syntax discipline -------------------------------------- */
+    /* Type-only imports must say so, so erasure is unambiguous. */
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    /* Bans enum, namespace and parameter properties -- the TypeScript syntax
+       that cannot be erased. Keeps the source runnable by any type-stripping
+       runtime and keeps generated code boring. */
+    "erasableSyntaxOnly": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Relative imports carry the real `.ts` extension. Node 24 strips types
+       natively but does not resolve extensions for you, so this is what lets
+       `node scripts/check-toolchain-age.ts` run with no build step and no
+       loader. `rewriteRelativeImportExtensions` keeps that working if the
+       project later adds a build: tsc rewrites `.ts` to `.js` on emit. */
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
+    /* Type-checking .d.ts files of third-party packages finds bugs we cannot
+       fix, in code we do not own. Cost/benefit says skip. */
+    "skipLibCheck": true,
+
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "types/**/*.d.ts",
+    "*.config.ts",
+    "eslint.config.js",
+    "prettier.config.js"
+  ]
+}

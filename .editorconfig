@@ -1,0 +1,16 @@
+# Applies before any tool runs, including to files Prettier does not format
+# (mise.toml, .gitattributes, shell scripts). Prettier remains the authority for
+# everything it does own; these settings are chosen to agree with it.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Trailing whitespace is significant in Markdown (hard line break).
+trim_trailing_whitespace = false
