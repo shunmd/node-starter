@@ -19,8 +19,8 @@ foundation.
 | Format          | Prettier, near-default, verified in CI                                                      |
 | Test            | Vitest with an 80% coverage floor                                                           |
 | CI              | GitHub Actions running the same `pnpm verify` you run locally                               |
-| Static analysis | Knip, dependency-cruiser, Gitleaks                                                          |
-| AI              | `AGENTS.md` as single source of truth, imported by `CLAUDE.md`                              |
+| Static analysis | ESLint SonarJS rules, Knip, dependency-cruiser, Gitleaks                                    |
+| AI              | `AGENTS.md` context router, imported by `CLAUDE.md`                                         |
 
 ## Prerequisites
 
@@ -110,33 +110,21 @@ TypeScript runs with `strict` plus `noUncheckedIndexedAccess`,
 non-exhaustive switches and conditions that can never be false are all errors.
 
 The complete merge policy, including coverage, complexity, duplication,
-conditional Sonar checks and mutation-testing rules, is in
+local static-analysis rules and mutation-testing rules, is in
 [`docs/code-quality-gate.md`](docs/code-quality-gate.md).
 
 ## AI development
 
-`AGENTS.md` is the single source of truth for coding agents. `CLAUDE.md` imports
-it; nothing duplicates it.
-
-The organising principle is that **rules which can be executed are executed**.
-Formatting, typing, dependency policy and lint standards are not described to
-agents in prose — they are enforced by tools that answer the same way every
-time. `AGENTS.md` holds only what tooling cannot check.
-
-Agents may freely update `docs/`, including `docs/ai/learnings.md` (things
-discovered while working) and `docs/ai/improvement-backlog.md` (proposed changes
-to the setup itself). They may **not** change the enforcement layer — lint
-config, tsconfig, CI, toolchain pins, supply-chain settings. The
-`guard-enforcement-layer` CI job blocks pull requests that touch those paths
-without an explicit human approval marker, because an agent that can weaken its
-own checks does not have checks.
+The root [`AGENTS.md`](AGENTS.md) is a small navigation document shared with
+Claude Code through [`CLAUDE.md`](CLAUDE.md). Current repository knowledge is
+routed from [`docs/index.md`](docs/index.md); historical decisions are indexed
+separately in [`docs/decisions/index.md`](docs/decisions/index.md). This README
+remains a human-facing setup and customization guide.
 
 The recommended AI-assisted workflow is bounded by small tasks, isolated
 branches, independent CI and human approval for production or high-risk
 changes. See [`docs/development-guide.md`](docs/development-guide.md#ai-assisted-change-loop)
 and [ADR 5](docs/decisions/0005-bounded-ai-assisted-development.md).
-
-See [`docs/decisions/0004-ai-asset-layout.md`](docs/decisions/0004-ai-asset-layout.md).
 
 The template is not a web application, so Playwright is intentionally not
 installed. Generated web projects should add an `e2e` script and a minimal
@@ -207,10 +195,10 @@ Work through this before your first real commit.
 - [ ] `src/index.ts` and `src/index.test.ts` — placeholder code. Delete them.
 - [ ] `scripts/diff-upstream.sh` — point `TEMPLATE_REMOTE` at this template if
       you forked it somewhere else.
-- [ ] `AGENTS.md` — add project-specific rules under "Conventions the tools
-      cannot check". Do not restate anything a tool already enforces.
-- [ ] `docs/decisions/` — ADRs 1–4 describe the template's own decisions. Keep
-      them (they explain your setup) and add yours from number 5.
+- [ ] `AGENTS.md` — keep only durable repository-wide guidance that tools
+      cannot enforce, and use `docs/index.md` for detail.
+- [ ] `docs/decisions/` — ADRs 1–6 describe the template's own decisions. Keep
+      relevant history and add yours from number 7.
 - [ ] `docs/ai/learnings.md` — clear the seeded entry once it stops being useful.
 - [ ] `mise.lock` — verify the pinned lockfile after changing the toolchain.
 - [ ] `LICENSE` — add one if this is going to be shared.
@@ -223,8 +211,8 @@ Work through this before your first real commit.
 
 ```text
 .
-├── AGENTS.md              # Agent rules. Single source of truth.
-├── CLAUDE.md              # Two-line stub importing AGENTS.md.
+├── AGENTS.md              # Agent navigation and repository-wide guidance.
+├── CLAUDE.md              # Stub importing AGENTS.md.
 ├── README.md              # This file: for a human arriving for the first time.
 ├── mise.toml              # Exact Node + pnpm pins. The reproducibility root.
 ├── mise.lock              # Checksums for the above. Written by `mise install`; commit it.
@@ -254,15 +242,19 @@ Work through this before your first real commit.
 │   ├── index.ts           # Placeholder. Delete.
 │   └── index.test.ts      # Placeholder. Delete.
 └── docs/
-    ├── architecture.md    # The shape of the system.
+    ├── index.md            # Documentation router.
+    ├── architecture.md    # The shape of the system and context boundaries.
     ├── development-guide.md # Recurring human procedures.
     ├── ai/
     │   ├── learnings.md            # Volatile discoveries. Agent-writable.
     │   └── improvement-backlog.md  # Proposed rule changes. Agent-writable.
     └── decisions/         # ADRs: why, and what was rejected.
+        ├── index.md
         ├── 0000-adr-template.md
         ├── 0001-toolchain-ownership.md
         ├── 0002-typescript-6-for-type-aware-lint.md
         ├── 0003-release-cooldown.md
-        └── 0004-ai-asset-layout.md
+        ├── 0004-ai-asset-layout.md
+        ├── 0005-bounded-ai-assisted-development.md
+        └── 0006-navigation-first-ai-context.md
 ```

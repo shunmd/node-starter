@@ -1,8 +1,9 @@
 # Improvement backlog
 
 Proposed changes to the enforcement layer — lint rules, tsconfig flags, CI
-steps, scripts. Agents may not edit those files directly (see `AGENTS.md` rule
-4), so proposals land here and a human applies them.
+steps, scripts. Protected paths are not changed as a side effect of ordinary
+work; proposals land here and a human applies them through the repository's
+approval process.
 
 A proposal is only useful if it is concrete. Include:
 

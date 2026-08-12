@@ -1,8 +1,8 @@
 # Development guide
 
-Procedures for humans. Rules for agents live in `AGENTS.md`; rules for code live
-in the tool configs. This file covers the things that are neither — the recurring
-tasks where knowing the command is most of the work.
+Procedures for humans. The startup navigation for agents lives in `AGENTS.md`;
+rules for code live in the tool configs. This file covers recurring tasks and
+the enforcement-layer boundary where knowing the procedure is most of the work.
 
 ## Daily loop
 
@@ -34,6 +34,9 @@ The fast gate includes four checks beyond formatting, linting and types:
 - `pnpm architecture` runs dependency-cruiser. It rejects cycles, unresolved
   imports and imports from production code into tests. No layer rule is added
   because this template has no application architecture yet.
+- `pnpm lint` also runs selected `eslint-plugin-sonarjs` rules for cognitive
+  complexity and structural duplication. This is local ESLint analysis, not a
+  SonarQube server or a severity-ranked changed-code report.
 - `pnpm secret:scan` runs Gitleaks. With staged changes it scans the staged diff;
   otherwise it scans the working tree. Do not store credentials or add broad
   allowlists.
@@ -42,32 +45,21 @@ The fast gate includes four checks beyond formatting, linting and types:
   business logic; do not add meaningless tests to satisfy a number.
 
 Mutation testing is intentionally a separate, heavy check and is not part of
-`pnpm verify`. StrykerJS is not currently lockable under this repository's
-`trustPolicy: no-downgrade`: its current instrumenter chain resolves
-`semver@6.3.1`, which pnpm rejects because the registry trust evidence
-downgraded. The policy remains unchanged; add `test:mutation` only after the
-upstream trust metadata is repaired or a compatible Stryker release resolves
-without that downgrade.
+`pnpm verify`. StrykerJS requires an exact `trustPolicyExclude` entry for
+`semver@6.3.1` through its Babel instrumenter chain. That is a supply-chain
+exception, so it is not added automatically. After explicit approval, add the
+exact entry, configure Stryker, and add `test:mutation` as a separate job.
 
 This is a Node template rather than a web application, so Playwright is not
 installed. A generated web application should add it only after it has an
 application start command and a critical user flow to exercise.
 
-## SonarQube CLI
+## Local static analysis
 
-SonarQube CLI is an optional local analysis tool, not part of `pnpm verify`,
-because its analysis and secrets features require external authentication and
-network access. After installing and authenticating it outside this repository,
-use:
-
-```sh
-sonar analyze --staged
-sonar analyze --base main
-```
-
-Keep Sonar credentials in environment variables or the CLI's local credential
-store. Never commit a token, project key containing a secret, or generated
-credential file.
+SonarQube is intentionally not used. The repository uses `pnpm lint`, which
+includes selected `eslint-plugin-sonarjs` rules for cognitive complexity and
+structural duplication. It does not provide SonarQube's severity classification
+or changed-code duplication percentage.
 
 ## AI-assisted change loop
 
@@ -97,6 +89,28 @@ provide an issue tracker, staging environment, E2E suite or deployment
 workflow. A generated application must document and enforce those parts itself.
 The rationale and the boundary between reusable principles and project-specific
 steps are recorded in [ADR 5](decisions/0005-bounded-ai-assisted-development.md).
+
+## Protected enforcement layer
+
+The following paths define how quality is enforced and require explicit human
+approval for pull requests that change them:
+
+```text
+eslint.config.js
+tsconfig.json
+mise.toml
+mise.lock
+pnpm-workspace.yaml
+.github/workflows/
+scripts/check-toolchain-age.ts
+```
+
+The `guard-enforcement-layer` CI job checks these paths. Approval is expressed
+by the `toolchain` label or `TOOLCHAIN-CHANGE-APPROVED` in the pull request
+title. Proposed improvements belong in
+[`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md) until a human
+applies them. This boundary prevents ordinary changes from silently weakening
+their own checks.
 
 ## Adding a dependency
 

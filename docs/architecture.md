@@ -1,62 +1,56 @@
 # Architecture
 
-> **Replace this file.** In a generated project it should describe that
-> project's shape. What follows describes the template itself, and is here as a
-> worked example of the level of detail worth writing down.
+This repository is a generic Node.js project template. It has no application
+layers, web framework, cloud integration, or build output. Its architecture is
+the separation between executable enforcement, current documentation, and
+historical rationale.
 
-## The template's own structure
+## Executable enforcement
 
-The repository has one organising idea: **every rule that can be executed is
-executed, and only what cannot be executed is written down.**
+| Concern                              | Source of truth                            |
+| ------------------------------------ | ------------------------------------------ |
+| Toolchain versions and checksums     | `mise.toml` and `mise.lock`                |
+| Dependency policy and resolved graph | `pnpm-workspace.yaml` and `pnpm-lock.yaml` |
+| Formatting                           | `prettier.config.js`                       |
+| Type and code correctness            | `tsconfig.json` and `eslint.config.js`     |
+| Behaviour and coverage               | `vitest.config.ts` and `src/**/*.test.ts`  |
+| Dead code and dependency use         | `knip.jsonc`                               |
+| Dependency boundaries                | `.dependency-cruiser.json`                 |
+| Secret detection                     | `scripts/secret-scan.sh`                   |
+| Toolchain age and coherence          | `scripts/check-toolchain-age.ts`           |
+| CI execution                         | `.github/workflows/ci.yml`                 |
 
-That produces three layers.
+These checks share `pnpm verify`; `pnpm check` is its compatibility alias. A
+rule that a tool can enforce belongs in that tool's configuration, not in an
+agent instruction or a duplicate policy paragraph.
 
-### 1. Enforcement (executable)
+## Documentation ownership
 
-| Concern                      | Owner                                    |
-| ---------------------------- | ---------------------------------------- |
-| Which binaries exist         | `mise.toml` + `mise.lock`                |
-| Which packages are allowed   | `pnpm-workspace.yaml` + `pnpm-lock.yaml` |
-| Layout of code               | `prettier.config.js`                     |
-| Correctness of code          | `tsconfig.json`, `eslint.config.js`      |
-| Behaviour of code            | `vitest.config.ts` + `src/**/*.test.ts`  |
-| Coverage floor               | `vitest.config.ts`                       |
-| Dead code and dependency use | `knip.jsonc`                             |
-| Dependency boundaries        | `.dependency-cruiser.json`               |
-| Secret detection             | `mise.toml` + `scripts/secret-scan.sh`   |
-| Toolchain age and coherence  | `scripts/check-toolchain-age.ts`         |
-| All of the above, remotely   | `.github/workflows/ci.yml`               |
+| Knowledge                    | Owner                            | Loading policy                         |
+| ---------------------------- | -------------------------------- | -------------------------------------- |
+| Current repository shape     | `docs/architecture.md`           | On demand from `docs/index.md`         |
+| Recurring procedures         | `docs/development-guide.md`      | On demand from `docs/index.md`         |
+| Quality policy               | `docs/code-quality-gate.md`      | On demand when evaluating the gate     |
+| Historical rationale         | `docs/decisions/*.md`            | Only through `docs/decisions/index.md` |
+| Temporary discoveries        | `docs/ai/learnings.md`           | Prune, promote, or delete              |
+| Proposed enforcement changes | `docs/ai/improvement-backlog.md` | Human applies accepted proposals       |
 
-These are wired together by a single entry point, `pnpm verify` (`pnpm check` is
-a compatibility alias). Adding a new
-mechanical rule means adding it to one of these files — never to prose.
+`AGENTS.md` is the always-loaded router. `CLAUDE.md` imports it. `README.md` is
+human-facing and is not a second agent knowledge base.
 
-### 2. Durable decisions (written, stable)
+## Knowledge maintenance
 
-`docs/decisions/` holds ADRs: why a thing is the way it is, what else was
-considered, and what would make us change our minds. An ADR is not edited after
-it is accepted; it is superseded by a later one.
+When new information appears, classify it before writing it down. Temporary
+observations are discarded; mechanically enforceable rules go to tooling;
+current facts update their existing owner; historical reasons become an ADR;
+repeatable procedures belong in the development guide or an appropriate skill.
+Update or remove superseded text instead of appending another version.
 
-`docs/code-quality-gate.md` is the normative quality policy. It defines the
-standard metrics and marks which ones are active in this template versus
-conditional on an application-specific Sonar, E2E or mutation-testing setup.
+The repository does not create `.ai/` context trees or instruction files for
+every directory. A local `AGENTS.md` is justified only by an independent
+workspace, package, or service with durable additional knowledge.
 
-### 3. Working knowledge (written, volatile)
+## Boundary with the README
 
-`docs/ai/learnings.md` and `docs/ai/improvement-backlog.md` are append-and-prune
-scratch space that agents maintain as they work. Nothing here is authoritative;
-it is a staging area for things that may become ADRs, lint rules, or nothing.
-
-## Why the separation matters
-
-Rules stated only in prose decay in a predictable way: they are followed while
-someone remembers them, then followed inconsistently, then cited in review as if
-they had always been enforced. Rules stated as checks either work or fail
-loudly. So the design question for any new rule is not "where should I document
-this" but "can this be a check". Prose is the fallback, not the default.
-
-## Boundary with README
-
-`README.md` is for someone who has never seen the repository: what it is, how to
-start, what to change first. It does not explain rationale. This file and
-`docs/decisions/` do.
+`README.md` explains what the template is, how a human starts it, and how to
+customize it. It does not own architecture rationale or agent startup context.

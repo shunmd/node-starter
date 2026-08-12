@@ -37,20 +37,20 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 
 ## 2. 標準Quality Gate
 
-以下が標準基準である。`Conditional`は、対象ツールと対象アプリが存在する
-プロジェクトでは必須とし、このテンプレートのようにまだ適用対象がない場合
-は「未適用」と明記する。未適用の項目をPASS扱いにして隠してはならない。
+以下が標準基準である。`Active`は現在のQuality Gateで必須、`Not measured`は
+別の測定基盤が必要、`Pending`は導入判断または安全な依存解決が残っている
+項目を示す。未測定・保留の項目をPASS扱いにして隠してはならない。
 
 | Category        | Metric                       | Gate                 | このリポジトリ                      |
 | --------------- | ---------------------------- | -------------------- | ----------------------------------- |
 | Formatting      | Formatter Error              | `= 0`                | Active: Prettier                    |
 | Lint            | Lint Error / Warning         | `= 0`                | Active: ESLint + `--max-warnings 0` |
 | Type Safety     | Type Error                   | `= 0`                | Active: `tsc --noEmit`              |
-| Static Analysis | Critical Issue               | `= 0`                | Conditional: SonarQube CLI          |
-| Static Analysis | High Severity Issue          | `= 0`                | Conditional: SonarQube CLI          |
+| Static Analysis | Critical / High Issue        | `= 0`                | Not measured: SonarQube not adopted |
 | Complexity      | Cyclomatic Complexity        | `<= 10 / function`   | Active: ESLint                      |
-| Complexity      | Cognitive Complexity         | `<= 15 / function`   | Conditional: SonarQube CLI          |
-| Duplication     | Duplicated Lines on New Code | `<= 3%`              | Conditional: SonarQube CLI          |
+| Complexity      | Cognitive Complexity         | `<= 15 / function`   | Active: ESLint SonarJS rules        |
+| Duplication     | Repeated Branch / Function   | `= 0`                | Active: ESLint SonarJS rules        |
+| Duplication     | Duplicated Lines on New Code | `<= 3%`              | Not measured: no line-diff tool     |
 | Dead Code       | Unused File                  | `= 0`                | Active: Knip                        |
 | Dead Code       | Unused Dependency            | `= 0`                | Active: Knip                        |
 | Dead Code       | Unused Export / Type         | `= 0`                | Active: Knip                        |
@@ -61,7 +61,7 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Coverage        | Line Coverage                | `>= 80%`             | Active: Vitest coverage             |
 | Coverage        | Branch Coverage              | `>= 80%`             | Active: Vitest coverage             |
 | Coverage        | Function Coverage            | `>= 80%`             | Active: Vitest coverage             |
-| Mutation        | Mutation Score               | recommended `>= 80%` | Deferred: StrykerJS                 |
+| Mutation        | Mutation Score               | recommended `>= 80%` | Pending: StrykerJS trust approval   |
 
 いずれかの必須項目がGateを満たさない場合、Quality GateはFAILである。
 
@@ -91,8 +91,9 @@ CIは同じ `pnpm verify` を実行する。`pnpm check` は互換エイリア�
 別の品質基準ではない。
 
 現在の `verify` がPASSすることは、上表のActive項目を満たしたことを示す。
-SonarのConditional項目を有効化したアプリケーションでは、それらもCIへ
-追加してから「標準Quality Gate PASS」と扱う。
+「Not measured」はPASSでもFAILでもなく、別の測定基盤を追加しない限り判定
+不能である。リポジトリの標準ゲートに含めない項目を、実施済みのように表示
+してはならない。
 
 ## 4. 個別基準
 
@@ -139,20 +140,20 @@ GateはType Error `= 0`である。`strict`、
 
 ### 4.4 Static Analysis
 
-Static Analysisの標準ツールはSonarQube CLIとする。Critical IssueとHigh
-Severity Issueは新規・変更コードで0とする。既存Issueを理由に新規Issueを
-許容しない。
-
-このテンプレートではSonarの認証・プロジェクト設定・CI接続先が未定義で
-あるため、`pnpm verify`には組み込んでいない。アプリケーション化した時点
-で、外部認証情報をリポジトリへ保存せずにCIへ追加する。
-
-ローカルの差分解析は次を標準コマンドとする。
+SonarQubeは導入しない。サーバー、認証情報、プロジェクト設定に依存しない
+ローカル検査として、ESLintへ`eslint-plugin-sonarjs`の選択ルールを組み込む。
 
 ```sh
-sonar analyze --staged
-sonar analyze --base main
+pnpm lint
 ```
+
+現在有効なルールは、Cognitive Complexity `<= 15`、重複ブランチ、同一条件、
+同一式、同一関数、同一文字列の検出である。これらはSeverity付きの
+SonarQube Quality Gateではなく、ESLintのエラー0件として扱う。
+
+Critical / HighというSeverity分類、既存Issueとの差分管理、変更行の重複率
+3%はESLintだけでは再現できない。これらを測定済みとは扱わず、必要になった
+場合は別のローカルツールを選定してから導入する。
 
 ### 4.5 Cyclomatic Complexity
 
@@ -167,7 +168,7 @@ ESLintの`complexity`ルールで実行している。
 
 関数またはメソッド単位でCognitive Complexity `<= 15`とする。深いネスト、
 多段条件、複雑な制御フローを減らす。現行テンプレートではこの指標を
-Sonarなしで測定できないため、Sonar有効化時のConditional Gateとする。
+`eslint-plugin-sonarjs`で測定し、`pnpm lint`の必須Gateとする。
 
 ### 4.7 Duplication
 
@@ -176,8 +177,9 @@ Sonarなしで測定できないため、Sonar有効化時のConditional Gateと
 残す理由をレビューに記録する。重複率を下げること自体を目的に過剰な抽象化
 を行わない。
 
-現行テンプレートでは新規コード差分の重複率を測るSonar設定がないため、
-Conditional Gateとして明記する。
+現行テンプレートでは変更行単位の重複率を測定しない。その代わり、ESLintで
+重複ブランチ、同一関数、同一条件、同一式、同一文字列を検出する。これは
+重複率`<= 3%`と同値ではないため、元の基準を満たしたとは表現しない。
 
 ### 4.8 Dead Code
 
@@ -240,10 +242,12 @@ Mutation Testingはテストコード自体の検出能力を測る。通常のv
 推奨基準はMutation Score `>= 80%`、`60%`未満は改善対象とする。実行時間が
 Pull Requestの許容範囲に収まる場合だけ、必須Gateへの昇格を検討する。
 
-現行テンプレートではStrykerJSの依存が、既存の
-`trustPolicy: no-downgrade`により拒否されるため未導入である。信頼ポリシー
-を無効化して導入することはしない。互換リリースが解決した時点で
-`test:mutation`と別CI Jobを追加する。
+StrykerJSは通常の`verify`とは分離し、`test:mutation`と別CI Jobで実行する。
+ただし、現行のStrykerJS CoreはBabel経由で`semver@6.3.1`を引き込み、既存の
+`trustPolicy: no-downgrade`により拒否される。導入にはこの正確なバージョン
+だけを`trustPolicyExclude`へ追加する供給網例外が必要であり、明示的な人間の
+承認なしには追加しない。承認後にStryker設定、`test:mutation`、Mutation
+Scoreの閾値を追加する。
 
 ## 5. CIの実行方針
 
@@ -282,17 +286,17 @@ Secret scanner例外を大量に追加してGateを通してはならない。�
 
 ## 7. 標準ツール候補
 
-| Purpose              | Tool                       |
-| -------------------- | -------------------------- |
-| Formatting           | Prettier                   |
-| Lint                 | ESLint + typescript-eslint |
-| Type Check           | TypeScript Compiler        |
-| Static Analysis      | SonarQube CLI              |
-| Dead Code            | Knip                       |
-| Architecture         | dependency-cruiser         |
-| Unit Test / Coverage | Vitest                     |
-| Mutation Testing     | StrykerJS                  |
-| Secret Scan          | Gitleaks                   |
+| Purpose              | Tool                           |
+| -------------------- | ------------------------------ |
+| Formatting           | Prettier                       |
+| Lint                 | ESLint + typescript-eslint     |
+| Type Check           | TypeScript Compiler            |
+| Static Analysis      | ESLint + eslint-plugin-sonarjs |
+| Dead Code            | Knip                           |
+| Architecture         | dependency-cruiser             |
+| Unit Test / Coverage | Vitest                         |
+| Mutation Testing     | StrykerJS                      |
+| Secret Scan          | Gitleaks                       |
 
 Quality Gateの意味を保てる同等ツールへの置換は可能だが、置換理由と測定
 方法をこの文書またはADRへ記録する。
