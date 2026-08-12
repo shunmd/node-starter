@@ -12,12 +12,17 @@ pnpm verify   # the full gate; identical to CI
 ```
 
 `pnpm verify` runs `check:toolchain`, `format:check`, `lint`, `typecheck`,
-`deadcode`, `architecture`, `test:coverage` and `secret:scan` in that order,
+`deadcode`, `architecture`, `secret:scan` and `test:coverage` in that order,
 stopping at the first failure. `pnpm check` is a compatibility alias. Individual
 steps exist as separate scripts when you want a faster loop.
 
 There is intentionally no `ci` script. CI runs `pnpm verify`, so there is exactly
 one definition of "passing" and no way for the two to diverge.
+
+The policy behind the gate is in
+[`docs/code-quality-gate.md`](code-quality-gate.md). It distinguishes the
+standard application gate from checks that this unconfigured Node template
+cannot execute yet.
 
 ## Static analysis and security checks
 

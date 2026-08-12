@@ -122,11 +122,10 @@ export default tseslint.config(
       // Immutability by default at API boundaries; autofixable.
       '@typescript-eslint/prefer-readonly': 'error',
 
-      // A single guard against genuinely unreadable functions. The threshold is
-      // set high on purpose: it should fire on a 300-line branch monster, not
-      // on ordinary code. A low threshold trains people (and agents) to split
-      // functions for the linter rather than for the reader.
-      complexity: ['error', 20],
+      // Cyclomatic complexity follows the repository's Quality Gate guideline:
+      // ten is the maximum per function. Refactor for responsibility and
+      // control-flow clarity, not merely to make a number smaller.
+      complexity: ['error', 10],
 
       // Names of types are structural information, so they are worth
       // constraining. Broader naming-convention configs mostly generate churn.

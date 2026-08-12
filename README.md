@@ -109,6 +109,10 @@ TypeScript runs with `strict` plus `noUncheckedIndexedAccess`,
 `strictTypeChecked` set on top — floating promises, unsafe `any` flows,
 non-exhaustive switches and conditions that can never be false are all errors.
 
+The complete merge policy, including coverage, complexity, duplication,
+conditional Sonar checks and mutation-testing rules, is in
+[`docs/code-quality-gate.md`](docs/code-quality-gate.md).
+
 ## AI development
 
 `AGENTS.md` is the single source of truth for coding agents. `CLAUDE.md` imports

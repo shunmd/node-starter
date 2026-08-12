@@ -37,6 +37,10 @@ mechanical rule means adding it to one of these files — never to prose.
 considered, and what would make us change our minds. An ADR is not edited after
 it is accepted; it is superseded by a later one.
 
+`docs/code-quality-gate.md` is the normative quality policy. It defines the
+standard metrics and marks which ones are active in this template versus
+conditional on an application-specific Sonar, E2E or mutation-testing setup.
+
 ### 3. Working knowledge (written, volatile)
 
 `docs/ai/learnings.md` and `docs/ai/improvement-backlog.md` are append-and-prune

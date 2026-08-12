@@ -138,10 +138,11 @@ async function nodeReleaseDate(version: string): Promise<Date> {
   throw new Error(`nodejs.org does not list a release for Node ${version}.`);
 }
 
-async function main(): Promise<void> {
-  const miseToml = read('mise.toml');
-  const workspaceYaml = read('pnpm-workspace.yaml');
+type ToolchainPins = readonly [node: string, pnpm: string];
 
+type DeclaredPins = readonly [node: string, pnpm: string];
+
+function readDeclaredPins(): DeclaredPins {
   const packageJsonRaw: unknown = JSON.parse(read('package.json'));
   if (!isRecord(packageJsonRaw)) {
     throw new Error('package.json did not parse to an object.');
@@ -155,22 +156,24 @@ async function main(): Promise<void> {
   if (!isRecord(runtime) || !isRecord(packageManager)) {
     throw new Error('devEngines must declare both runtime and packageManager.');
   }
-
-  const miseNode = tomlString(miseToml, 'node');
-  const misePnpm = tomlString(miseToml, 'pnpm');
   const declaredNode = runtime['version'];
   const declaredPnpm = packageManager['version'];
-
-  if (typeof miseNode !== 'string' || typeof misePnpm !== 'string') {
-    throw new Error('mise.toml must pin both node and pnpm to exact versions.');
-  }
   if (typeof declaredNode !== 'string' || typeof declaredPnpm !== 'string') {
     throw new Error(
       'devEngines.runtime.version and devEngines.packageManager.version must be strings.',
     );
   }
+  return [declaredNode, declaredPnpm];
+}
 
-  // --- The pins must agree -------------------------------------------------
+function readToolchainPins(miseToml: string): ToolchainPins {
+  const miseNode = tomlString(miseToml, 'node');
+  const misePnpm = tomlString(miseToml, 'pnpm');
+  if (typeof miseNode !== 'string' || typeof misePnpm !== 'string') {
+    throw new Error('mise.toml must pin both node and pnpm to exact versions.');
+  }
+  const [declaredNode, declaredPnpm] = readDeclaredPins();
+
   if (miseNode !== declaredNode) {
     fail(
       `Node pin mismatch: mise.toml says ${miseNode}, package.json devEngines.runtime says ${declaredNode}.`,
@@ -182,7 +185,10 @@ async function main(): Promise<void> {
     );
   }
 
-  // --- The dependency cooldown must match the toolchain cooldown -----------
+  return [miseNode, misePnpm];
+}
+
+function checkCooldownPolicy(workspaceYaml: string): void {
   const minimumReleaseAge = yamlNumber(workspaceYaml, 'minimumReleaseAge');
   if (minimumReleaseAge !== EXPECTED_MINIMUM_RELEASE_AGE_MINUTES) {
     fail(
@@ -205,15 +211,27 @@ async function main(): Promise<void> {
         'without a registry publish time is refused rather than treated as mature.',
     );
   }
+}
 
-  // --- The pinned versions must have cooled down ---------------------------
+async function checkReleaseAges(
+  pins: ToolchainPins,
+): Promise<readonly [Date, Date]> {
+  const [node, pnpm] = pins;
   const [pnpmPublished, nodePublished] = await Promise.all([
-    npmPublishTime('pnpm', misePnpm),
-    nodeReleaseDate(miseNode),
+    npmPublishTime('pnpm', pnpm),
+    nodeReleaseDate(node),
   ]);
-  checkAge('pnpm', misePnpm, pnpmPublished);
-  checkAge('node', miseNode, nodePublished);
+  checkAge('pnpm', pnpm, pnpmPublished);
+  checkAge('node', node, nodePublished);
+  return [pnpmPublished, nodePublished];
+}
 
+function reportResult(
+  pins: ToolchainPins,
+  pnpmPublished: Date,
+  nodePublished: Date,
+): void {
+  const [node, pnpm] = pins;
   if (problems.length > 0) {
     console.error(
       `Toolchain policy check failed (${String(problems.length)}):\n`,
@@ -225,10 +243,17 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Toolchain OK: node ${miseNode} (${ageInDays(nodePublished).toFixed(0)}d), ` +
-      `pnpm ${misePnpm} (${ageInDays(pnpmPublished).toFixed(0)}d), ` +
+    `Toolchain OK: node ${node} (${ageInDays(nodePublished).toFixed(0)}d), ` +
+      `pnpm ${pnpm} (${ageInDays(pnpmPublished).toFixed(0)}d), ` +
       `dependency cooldown ${String(COOLDOWN_DAYS)}d and strict.`,
   );
+}
+
+async function main(): Promise<void> {
+  const pins = readToolchainPins(read('mise.toml'));
+  checkCooldownPolicy(read('pnpm-workspace.yaml'));
+  const [pnpmPublished, nodePublished] = await checkReleaseAges(pins);
+  reportResult(pins, pnpmPublished, nodePublished);
 }
 
 await main();
