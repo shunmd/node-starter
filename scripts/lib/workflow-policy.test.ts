@@ -332,17 +332,19 @@ describe('checkWorkflows', () => {
     ]);
   });
 
-  it('accepts a local action reference whose manifest was scanned and is clean', () => {
+  it('accepts a nested local action reference whose manifest was scanned', () => {
     const problems = checkWorkflows(
       [
         {
           path: '.github/workflows/ci.yml',
-          source: compliantWorkflow('      - uses: ./.github/actions/setup\n'),
+          source: compliantWorkflow(
+            '      - uses: ./.github/actions/setup/inner\n',
+          ),
         },
       ],
       [
         {
-          path: '.github/actions/setup',
+          path: '.github/actions/setup/inner',
           source:
             'name: setup\nruns:\n  using: composite\n  steps:\n    - run: echo ok\n      shell: bash\n',
         },

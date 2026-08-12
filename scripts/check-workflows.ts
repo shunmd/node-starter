@@ -39,38 +39,49 @@ async function readWorkflows(): Promise<readonly PolicySource[]> {
 
 /**
  * Keyed by the directory a workflow references (`.github/actions/setup`), not
- * by the manifest file, because that is what `uses:` names.
+ * by the manifest file, because that is what `uses:` names. Nested action
+ * directories are included so a local action cannot hide another local action
+ * below the first directory level.
  */
-async function readActions(): Promise<readonly PolicySource[]> {
-  const directory = path.join(githubRoot, 'actions');
+async function readActionDirectory(
+  directory: string,
+  relativeDirectory: string,
+): Promise<readonly PolicySource[]> {
   let entries;
   try {
     entries = await readdir(directory, { withFileTypes: true });
   } catch {
     return [];
   }
-  const manifests = await Promise.all(
+  const manifest = entries.find(
+    (entry) =>
+      entry.isFile() && ['action.yml', 'action.yaml'].includes(entry.name),
+  );
+  const current =
+    manifest === undefined
+      ? []
+      : [
+          {
+            path: path.posix.join('.github/actions', relativeDirectory),
+            source: await readFile(path.join(directory, manifest.name), 'utf8'),
+          },
+        ];
+  const nested = await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
       .sort((left, right) => left.name.localeCompare(right.name))
-      .map(async (entry) => {
-        for (const name of ['action.yml', 'action.yaml']) {
-          try {
-            return {
-              path: `.github/actions/${entry.name}`,
-              source: await readFile(
-                path.join(directory, entry.name, name),
-                'utf8',
-              ),
-            };
-          } catch {
-            continue;
-          }
-        }
-        return undefined;
-      }),
+      .map((entry) =>
+        readActionDirectory(
+          path.join(directory, entry.name),
+          path.posix.join(relativeDirectory, entry.name),
+        ),
+      ),
   );
-  return manifests.filter((manifest) => manifest !== undefined);
+  return [...current, ...nested.flat()];
+}
+
+async function readActions(): Promise<readonly PolicySource[]> {
+  return readActionDirectory(path.join(githubRoot, 'actions'), '');
 }
 
 async function main(): Promise<void> {
