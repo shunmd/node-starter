@@ -32,7 +32,14 @@ TRACKED_PATHS=(
   .gitattributes
   .prettierignore
   .github/workflows/ci.yml
+  .github/workflows/github-settings.yml
+  infra/github/README.md
+  infra/github/repository-settings.json
+  infra/github/rulesets/main.json
+  infra/github/environments/production.json
+  infra/github/secrets-manifest.json
   scripts/check-toolchain-age.ts
+  scripts/github-settings.ts
   scripts/secret-scan.sh
   AGENTS.md
 )

@@ -1,0 +1,84 @@
+name: GitHub settings
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ci.yml
+      - .github/workflows/github-settings.yml
+      - infra/github/**
+      - scripts/github-settings.ts
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply the declared settings to GitHub
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate GitHub settings
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.apply == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      - name: Validate desired state
+        run: node scripts/github-settings.ts --check
+
+  drift:
+    name: detect GitHub settings drift
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      - name: Compare with GitHub
+        run: node scripts/github-settings.ts --check --remote
+
+  apply-guard:
+    name: validate apply target
+    if: github.event_name == 'workflow_dispatch' && inputs.apply == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main branch
+        run: test "${GITHUB_REF}" = "refs/heads/main"
+
+  apply:
+    name: apply GitHub settings
+    if: github.event_name == 'workflow_dispatch' && inputs.apply == true && github.ref == 'refs/heads/main'
+    needs: apply-guard
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      - name: Apply desired state
+        run: node scripts/github-settings.ts --apply

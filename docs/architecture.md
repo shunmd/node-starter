@@ -20,6 +20,9 @@ historical rationale.
 | Secret detection                     | `scripts/secret-scan.sh`                   |
 | Toolchain age and coherence          | `scripts/check-toolchain-age.ts`           |
 | CI execution                         | `.github/workflows/ci.yml`                 |
+| GitHub repository desired state      | `infra/github/*.json`                      |
+| GitHub settings API reconciliation   | `scripts/github-settings.ts`               |
+| GitHub settings drift detection      | `.github/workflows/github-settings.yml`    |
 
 The standard checks share `pnpm verify`; Mutation Testing runs through the
 required `pnpm test:mutation` job. `pnpm check` is the compatibility alias for
