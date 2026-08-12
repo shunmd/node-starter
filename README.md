@@ -17,7 +17,7 @@ foundation.
 | Language        | TypeScript 6.0 (`strict` plus everything `strict` leaves off), ESM                          |
 | Lint            | ESLint 10 flat config, typescript-eslint `strictTypeChecked`, no warnings                   |
 | Format          | Prettier, near-default, verified in CI                                                      |
-| Test            | Vitest with an 80% coverage floor                                                           |
+| Test            | Vitest with an 80% per-file coverage floor                                                  |
 | CI              | GitHub Actions running `pnpm verify` plus a required Mutation job                           |
 | Static analysis | ESLint SonarJS rules, Knip, dependency-cruiser, Gitleaks                                    |
 | AI              | `AGENTS.md` context router, imported by `CLAUDE.md`                                         |
@@ -67,29 +67,35 @@ TypeScript language features, while `typescript` in this repository and
 
 ## Commands
 
-| Command                | What it does                                                                                       |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| `pnpm verify`          | **The standard gate.** Toolchain, format, lint, types, dead code, architecture, coverage, secrets. |
-| `pnpm check`           | Compatibility alias for `pnpm verify`.                                                             |
-| `pnpm fix`             | Applies every mechanical fix (`prettier --write`, `eslint --fix`).                                 |
-| `pnpm lint`            | ESLint only.                                                                                       |
-| `pnpm typecheck`       | `tsc --noEmit`.                                                                                    |
-| `pnpm test`            | Vitest, once.                                                                                      |
-| `pnpm test:coverage`   | Vitest with the 80% lines/functions/branches/statements floor.                                     |
-| `pnpm test:mutation`   | Required StrykerJS mutation gate with an 80% score floor, separate from `pnpm verify`.             |
-| `pnpm deadcode`        | Knip unused files, dependencies and exports.                                                       |
-| `pnpm architecture`    | dependency-cruiser circular and production-to-test checks.                                         |
-| `pnpm secret:scan`     | Gitleaks scan of staged content or the working tree.                                               |
-| `pnpm test:watch`      | Vitest, watching.                                                                                  |
-| `pnpm format:check`    | Prettier in check mode.                                                                            |
-| `pnpm check:toolchain` | Toolchain pins agree, and are old enough to be trusted.                                            |
+| Command                | What it does                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm verify`          | **The standard gate.** Toolchain, workflows, format, lint, types, dead code, architecture, duplication, secrets, dependencies, coverage. |
+| `pnpm check`           | Compatibility alias for `pnpm verify`.                                                                                                   |
+| `pnpm fix`             | Applies every mechanical fix (`prettier --write`, `eslint --fix`).                                                                       |
+| `pnpm lint`            | ESLint only.                                                                                                                             |
+| `pnpm typecheck`       | `tsc --noEmit`.                                                                                                                          |
+| `pnpm test`            | Vitest, once.                                                                                                                            |
+| `pnpm test:coverage`   | Vitest with the 80% per-file lines/functions/branches/statements floor.                                                                  |
+| `pnpm test:mutation`   | Required StrykerJS mutation gate with an 80% score floor, separate from `pnpm verify`.                                                   |
+| `pnpm deadcode`        | Knip unused files, dependencies and exports.                                                                                             |
+| `pnpm architecture`    | dependency-cruiser circular and production-to-test checks.                                                                               |
+| `pnpm secret:scan`     | Gitleaks scan of the working tree and the commit history.                                                                                |
+| `pnpm test:watch`      | Vitest, watching.                                                                                                                        |
+| `pnpm format:check`    | Prettier in check mode.                                                                                                                  |
+| `pnpm check:toolchain` | Toolchain pins agree, and are old enough to be trusted.                                                                                  |
+| `pnpm check:deps`      | No known vulnerability and no disallowed licence in the dependency graph.                                                                |
+| `pnpm check:workflows` | GitHub Actions workflows are sha-pinned, timed out, and least-privilege.                                                                 |
 
 CI runs `pnpm verify` in the standard `check` job and `pnpm test:mutation` in a
 separate required `mutation` job. There is intentionally no `ci` script.
 
 `pnpm verify` is the preferred name for the same gate. It includes toolchain,
-format, lint, type, dead-code, architecture, coverage and secret checks;
-`pnpm check` remains as a compatibility alias.
+workflow, format, lint, type, dead-code, architecture, duplication, secret,
+dependency and coverage checks; `pnpm check` remains as a compatibility alias.
+
+Two of those need a network and fail closed: `check:toolchain` reads release
+dates, and `check:deps` reads the advisory database. An unverifiable dependency
+graph is treated as unapproved rather than assumed fine.
 
 ## Code quality
 
@@ -190,6 +196,13 @@ Nothing syncs automatically — the script shows the diff and you decide.
 
 Work through this before your first real commit.
 
+- [ ] **`.github/CODEOWNERS` — replace every `@shunmd` with your own account or
+      team if you intend to enable code-owner review later.** The template's
+      `main` ruleset does not require approving reviews, so solo development and
+      mobile merges are not blocked by the placeholder owner.
+- [ ] `infra/policy/dependency-policy.json` — the accepted advisories and
+      licences are the template's risk decisions, not yours. Re-read them, and
+      set `owner` to whoever is actually accountable.
 - [ ] `package.json` — set `name`, `description`, `license`, and remove
       `"private": true` if this will be published.
 - [ ] `README.md` — replace this file with your project's own. Keep the

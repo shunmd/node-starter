@@ -20,6 +20,8 @@ REF="${1:-main}"
 # Files the template owns. Application code is never compared.
 TRACKED_PATHS=(
   mise.toml
+  package.json
+  pnpm-lock.yaml
   pnpm-workspace.yaml
   tsconfig.json
   eslint.config.js
@@ -34,16 +36,28 @@ TRACKED_PATHS=(
   .prettierignore
   .github/workflows/ci.yml
   .github/workflows/github-settings.yml
+  .github/dependabot.yml
+  .github/pull_request_template.md
   infra/github/README.md
   infra/github/repository-settings.json
   infra/github/rulesets/main.json
   infra/github/environments/production.json
   infra/github/secrets-manifest.json
+  scripts/check-dependencies.ts
   scripts/check-toolchain-age.ts
+  scripts/check-workflows.ts
   scripts/github-settings.ts
   scripts/secret-scan.sh
+  scripts/lib/dependency-policy.ts
+  scripts/lib/toolchain-policy.ts
+  scripts/lib/workflow-policy.ts
   AGENTS.md
 )
+
+# Deliberately not tracked: .github/CODEOWNERS and
+# infra/policy/dependency-policy.json. Both are per-project by nature -- the
+# owners are your team, and the accepted exceptions are your risk decisions --
+# so a diff against the template's copy would only ever be noise.
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: not inside a git repository" >&2

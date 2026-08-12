@@ -17,8 +17,9 @@ ADR bodies.
 
 ## Superseded
 
-| ADR                                                  | Replaced by                                                                  |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [`0004-ai-asset-layout.md`](0004-ai-asset-layout.md) | [`0006-navigation-first-ai-context.md`](0006-navigation-first-ai-context.md) |
+| ADR                                                                                        | Replaced by                                                                    |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| [`0004-ai-asset-layout.md`](0004-ai-asset-layout.md)                                       | [`0006-navigation-first-ai-context.md`](0006-navigation-first-ai-context.md)   |
+| [`0007-machine-verifiable-review-boundary.md`](0007-machine-verifiable-review-boundary.md) | [`0007-protected-file-review-notice.md`](0007-protected-file-review-notice.md) |
 
 `0000-adr-template.md` is a writing template, not an architectural decision.

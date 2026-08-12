@@ -21,8 +21,10 @@
     }
   },
   "scripts": {
-    "check": "pnpm run check:toolchain && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run deadcode && pnpm run architecture && pnpm run duplication && pnpm run secret:scan && pnpm run test:coverage",
+    "check": "pnpm run check:toolchain && pnpm run check:workflows && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run deadcode && pnpm run architecture && pnpm run duplication && pnpm run secret:scan && pnpm run check:deps && pnpm run test:coverage",
     "check:toolchain": "node scripts/check-toolchain-age.ts",
+    "check:workflows": "node scripts/check-workflows.ts",
+    "check:deps": "node scripts/check-dependencies.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
@@ -61,6 +63,7 @@
     "prettier": "^3.9.6",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.66.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   }
 }

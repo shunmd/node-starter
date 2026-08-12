@@ -1,0 +1,54 @@
+# Dependency updates were previously entirely manual, which meant the release
+# cooldown and the audit gate had nothing to act on: a vulnerable transitive
+# package stayed vulnerable until somebody happened to look.
+#
+# Dependabot only opens pull requests. Every one of them still has to pass
+# `pnpm verify` (including `pnpm check:deps`) and the mutation job. The template
+# does not require an approving review, so solo maintainers can merge after the
+# gates pass. Nothing here merges itself.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    # Matches the 5-day release cooldown in pnpm-workspace.yaml. Without it,
+    # Dependabot proposes versions that `pnpm install` is then required to
+    # refuse, and every such pull request is red for a reason that has nothing
+    # to do with its content.
+    cooldown:
+      default-days: 5
+    groups:
+      # One pull request per ecosystem concern rather than per package: a lint
+      # or test toolchain is upgraded as a set, and reviewing fifteen separate
+      # patch bumps is the kind of work this repository is trying to remove.
+      dev-tooling:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+      - toolchain
+    commit-message:
+      prefix: 'TOOLCHAIN-CHANGE-APPROVED: deps'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '04:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - toolchain
+    commit-message:
+      prefix: 'TOOLCHAIN-CHANGE-APPROVED: actions'

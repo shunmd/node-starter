@@ -57,14 +57,28 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Dead Code       | Unused File                   | `= 0`              | Active: Knip                                                                   |
 | Dead Code       | Unused Dependency             | `= 0`              | Active: Knip                                                                   |
 | Dead Code       | Unused Export / Type          | `= 0`              | Active: Knip                                                                   |
+| Dead Code       | Orphan Module                 | `= 0`              | Active: dependency-cruiser `no-orphans`                                        |
 | Architecture    | Circular Dependency           | `= 0`              | Active: dependency-cruiser                                                     |
 | Architecture    | Dependency Rule Violation     | `= 0`              | Active: dependency-cruiser rules                                               |
-| Security        | Secret Finding                | `= 0`              | Active: Gitleaks                                                               |
+| Supply Chain    | Known Vulnerability           | `= 0` unaccepted   | Active: `pnpm check:deps` (`pnpm audit`)                                       |
+| Supply Chain    | Disallowed Licence            | `= 0`              | Active: `pnpm check:deps` (`pnpm licenses list`)                               |
+| Supply Chain    | Release Cooldown              | `>= 5 days`        | Active: pnpm `minimumReleaseAge` + `pnpm check:toolchain`                      |
+| Supply Chain    | Unpinned CI Action            | `= 0`              | Active: `pnpm check:workflows`                                                 |
+| Supply Chain    | Dependency Update Proposal    | weekly             | Active: Dependabot (`.github/dependabot.yml`)                                  |
+| CI Policy       | Workflow Policy Violation     | `= 0`              | Active: `pnpm check:workflows`                                                 |
+| Security        | Secret Finding (working tree) | `= 0`              | Active: Gitleaks `dir`                                                         |
+| Security        | Secret Finding (history)      | `= 0`              | Active: Gitleaks `git`                                                         |
 | Test            | Failed Test                   | `= 0`              | Active: Vitest                                                                 |
-| Coverage        | Line Coverage                 | `>= 80%`           | Active: Vitest coverage                                                        |
-| Coverage        | Branch Coverage               | `>= 80%`           | Active: Vitest coverage                                                        |
-| Coverage        | Function Coverage             | `>= 80%`           | Active: Vitest coverage                                                        |
-| Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate)                                                   |
+| Test            | Skipped / Focused Test        | `= 0`              | Active: ESLint `vitest/no-focused-tests`, `vitest/no-disabled-tests`           |
+| Test            | Test Without Assertion        | `= 0`              | Active: ESLint `vitest/expect-expect`                                          |
+| Coverage        | Line Coverage (per file)      | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Branch Coverage (per file)    | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Function Coverage (per file)  | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Coverage on New Code          | `>= 80%`           | Approximated by the per-file threshold; see 4.11                               |
+| Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate job)                                               |
+| Review          | Human Approval                | not required       | Active: `main` ruleset keeps CI and thread-resolution gates                    |
+| Review          | Protected-file Notice         | informational      | Active: CI `protected-file-notice`                                             |
+| Shell           | Shell Lint Finding            | `= 0`              | Not measured: ShellCheck not in the pinned toolchain                           |
 
 いずれかの必須項目がGateを満たさない場合、Quality GateはFAILである。
 
@@ -80,15 +94,17 @@ pnpm verify
 
 ```text
 Toolchain policy
+  -> Workflow policy
   -> Format
   -> Lint
   -> Type Check
   -> Dead Code
   -> Architecture
   -> Duplication
-  -> Secret Scan
+  -> Secret Scan (working tree + history)
+  -> Dependency policy (vulnerabilities + licences)
   -> Unit / Integration Test
-  -> Coverage
+  -> Coverage (per file)
   -> Mutation Testing (separate required CI job)
 ```
 
@@ -247,8 +263,21 @@ Line、Branch、Function Coverageを使用し、各`>= 80%`とする。条件分
 pnpm test:coverage
 ```
 
-現行設定はリポジトリ全体の閾値である。アプリケーションで変更差分に対する
-Coverageを測れるようになった場合は、新規・変更コードにも適用する。
+閾値は`perFile: true`でファイル単位に適用する。リポジトリ全体の平均では、
+テストが充実したモジュールが未テストのモジュールを埋め合わせてしまい、
+レビュアーが本来懸念するファイルこそ平均に隠れる。
+
+変更行単位のCoverageを測るツールはこのツールチェーンに含まれないが、
+ファイル単位の閾値がその代替として機能する。新規ファイルは80%未満では
+リポジトリに入れられず、既存ファイルも80%を下回る変更を加えられない。
+差分そのものを測っているわけではないため、`Coverage on New Code`は
+「Active」ではなく「Approximated」と表記する。
+
+Coverageの対象は`src/**`と`scripts/lib/**`である。`scripts/lib/**`を含める
+のは、そこに品質ゲート自身の判定ロジックがあるためで、未テストの
+Enforcement Layerはゲートのないゲートである。`scripts/*.ts`は
+argv・I/O・exitのみを担うEntry Pointとして対象外とし、そこにロジックが
+逃げないようESLintで120行に制限する。
 
 ### 4.12 Mutation Testing
 
@@ -266,8 +295,79 @@ pnpm test:mutation
 ```
 
 Mutation Scoreは`>= 80%`を必須とし、StrykerJSの`break: 80`でコマンドをFAILに
-する。
-現行のplaceholder実装では9 mutant中9件を殺し、100%を確認している。
+する。対象はCoverageと同じ`src/**`と`scripts/lib/**`である。Enforcement Layer
+のテストが「実行はしているが検出はしていない」状態を許さないため、品質
+ゲート自身のロジックもMutation Testingの対象とする。
+
+### 4.13 Supply Chain
+
+依存関係は差分を読んでも判断できない。バージョン表記が妥当に見えても、
+そのパッケージに公開済みの脆弱性があるか、受け入れられないライセンスか、
+公開直後の版かは、人間のレビューでは分からない。したがって機械的な
+Gateとして扱う。
+
+```sh
+pnpm check:deps
+```
+
+- **Known Vulnerability**: `pnpm audit`の全Advisoryを対象とし、Severityで
+  除外しない。`moderate`だから無視するという判断は、依存の到達経路を見て
+  初めて可能であり、閾値では表現できない。
+- **Disallowed Licence**: `pnpm licenses list`の全パッケージを
+  `infra/policy/dependency-policy.json`のAllow Listと照合する。
+- **例外**: 上記いずれも同じ形式の例外で通す。対象を正確に特定し
+  (Advisory ID + パッケージ名、あるいはパッケージ名 + ライセンス)、理由と
+  責任者を必須とする。脆弱性の例外にはさらに`reviewBy`(再評価期限)を必須と
+  し、期限を過ぎた例外は抑制をやめてFAILになる。
+- **陳腐化した例外もFAILである**。該当する所見が消えた例外はファイルに
+  残せない。これにより、すでに解消した問題への承認が蓄積しない。
+
+`infra/policy/dependency-policy.json`はCODEOWNERSの対象である。既知の
+脆弱性やライセンスを受け入れる判断は、機械が単独で行ってはならない。
+
+Release Cooldown (5日) は`pnpm-workspace.yaml`の`minimumReleaseAge`と
+`scripts/check-toolchain-age.ts`が担う。前者はnpm依存、後者はmise管理の
+Node・pnpm本体を対象とする。
+
+### 4.14 CI / Workflow Policy
+
+GitHub Actionsのworkflowは、このリポジトリで最も高い権限で動くコードで
+あり、その失敗様態はESLintが探すものとは違う。したがって別のGateとする。
+
+```sh
+pnpm check:workflows
+```
+
+現在の必須ルールは次のとおりである。
+
+- すべての`uses:`をfull commit shaで固定する。tagやbranchはレビュー後に
+  別のコードへ差し替えられる。
+- `uses:`でReusable Workflowを呼び出すjob以外は`timeout-minutes`を設定し、
+  上限を30分とする。Reusable Workflowのtimeoutは呼び出し先で設定する。
+- workflowはtop-levelで`permissions`を宣言する。
+- 外部Reusable Workflowはfull commit shaで固定し、local workflowは
+  `.github/workflows/`配下に置く。OIDCの`id-token: write`はjob単位だけ許可する。
+- `pull_request_target`を使用しない。
+- `run:`に`${{ }}`を直接展開しない。値はshell実行前に貼り込まれるため、
+  それに影響できる者はコマンドを実行できる。`env:`経由で渡す。
+- `actions/checkout`は`persist-credentials: false`を指定する。
+
+### 4.15 承認なしのマージ保護
+
+Quality Gateが「人的レビューの卒業」を意味するのは、機械的に判定できる
+範囲についてだけである。Enforcement Layer自体の変更も、保護ファイル通知
+で可視化しつつ、個人開発で承認待ちにならないよう承認を必須にしない。
+
+境界は二重になっており、役割が異なる。
+
+| 仕組み                     | 何を保証するか                                |
+| -------------------------- | --------------------------------------------- |
+| CI `protected-file-notice` | 変更パスをPRコメントに記録する情報通知        |
+| `main` ruleset             | `check`、`mutation`、スレッド解決を必須にする |
+
+前者は制御ではなく情報通知であり、PRのtitleやlabelも要求しない。実際の
+承認は要求しない。`.github/CODEOWNERS`は、必要なプロジェクトが後から
+code-owner reviewを有効化するためのメタデータとして残している。
 
 ## 5. CIの実行方針
 
@@ -275,20 +375,27 @@ Mutation Scoreは`>= 80%`を必須とし、StrykerJSの`break: 80`でコマン�
 標準順序は次のとおりである。
 
 ```text
-Format
+Workflow Policy
+  -> Format
   -> Lint
   -> Type Check
   -> Dead Code
   -> Architecture
   -> Static Analysis
+  -> Secret Scan
+  -> Supply Chain
   -> Unit Test
   -> Coverage
   -> Quality Gate
 ```
 
-Secret ScanはStatic Analysisと同じ早期検査として扱う。Mutation Testingは
-必須の別Jobで実行する。E2Eはアプリケーションの存在を確認した上で別Jobまたは
-定期実行とする。
+Secret ScanとWorkflow PolicyはStatic Analysisと同じ早期検査として扱う。
+Supply Chainはネットワークを要するため、ローカルで完結する検査の後に置く。
+Mutation Testingは必須の別Jobで実行する。E2Eはアプリケーションの存在を
+確認した上で別Jobまたは定期実行とする。
+
+ネットワークを要する検査 (`check:toolchain`、`check:deps`) はfail closedで
+ある。到達できない場合は、検証できない状態を未承認として扱いFAILにする。
 
 ## 6. 例外と既存負債
 
@@ -317,6 +424,10 @@ Secret scanner例外を大量に追加してGateを通してはならない。�
 | Unit Test / Coverage | Vitest                         |
 | Mutation Testing     | StrykerJS                      |
 | Secret Scan          | Gitleaks                       |
+| Vulnerability Scan   | `pnpm audit`                   |
+| Licence Compliance   | `pnpm licenses list`           |
+| Workflow Policy      | `scripts/check-workflows.ts`   |
+| Dependency Updates   | Dependabot                     |
 
 Quality Gateの意味を保てる同等ツールへの置換は可能だが、置換理由と測定
 方法をこの文書またはADRへ記録する。

@@ -33,5 +33,8 @@ permissions required by the GitHub API. The `production` reviewer list is
 empty until concrete GitHub user or team IDs are selected; no reviewer is
 inferred from a repository login.
 
-The script manages only named rulesets and environments. It does not delete
-unmanaged GitHub settings, rulesets, environments, or secrets.
+The template's `main` ruleset does not require an approving review, code-owner
+review, or approval after the last push. It still requires the `check` and
+`mutation` status checks and review-thread resolution. The script manages only
+named rulesets and environments. It does not delete unmanaged GitHub settings,
+rulesets, environments, or secrets.
