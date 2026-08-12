@@ -24,6 +24,13 @@ jobs:
     timeout-minutes: 15
     permissions:
       security-events: write
+    # Code scanning is free on public repositories but requires a GitHub
+    # Advanced Security licence on private ones; without it `analyze` fails
+    # at the upload step. This template is commonly instantiated as a
+    # private repository (see README.md), so the job only runs there once
+    # the destination repository opts in by setting the `GHAS_ENABLED`
+    # repository variable to `true`.
+    if: github.event.repository.private == false || vars.GHAS_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
