@@ -28,8 +28,8 @@ Delete this section unless the pull request touches a protected path
 
 If it does, describe which rule is being added, relaxed, or removed, and what a
 reviewer should check that the new configuration itself does not. The
-protected-file notice is informational; no title marker or label is required.
-Matching CODEOWNERS entries and the main ruleset provide the approval boundary.
+protected-file notice is informational; no title marker, label, or approval is
+required by the template's main ruleset.
 -->
 
 ## Exceptions

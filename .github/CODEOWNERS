@@ -1,19 +1,14 @@
-# Who must approve what.
+# Protected-path ownership metadata for adopters who choose to enable review.
 #
-# ADOPTERS: REPLACE @shunmd BEFORE ENABLING THE RULESET.
+# The template's main ruleset does not require approving reviews. Replace
+# @shunmd before enabling code-owner review in a generated project.
 #
-# A code owner must have write access to the repository the file lives in. In a
-# generated project this file still names the template author, who has none --
-# so `require_code_owner_review` in infra/github/rulesets/main.json would demand
-# an approval that nobody present can give, and every pull request touching a
-# protected path would be unmergeable. Replace every @shunmd below with your own
-# account or team, then apply the ruleset. See the customization checklist in
-# README.md.
+# A code owner must have write access to the repository the file lives in.
+# Replace every @shunmd below with your own account or team before turning that
+# rule on. See the customization checklist in README.md.
 #
-# The `main` ruleset requires a code owner's review, so every pattern below is
-# a hard approval boundary: a pull request that touches a matching path cannot
-# merge on the author's own say-so, and an agent cannot grant it by editing a
-# title or a label.
+# The protected-file-notice workflow still reports changes to these paths, but
+# the notice is informational and does not create an approval boundary.
 #
 # Ordinary application code (`src/`) and documentation are deliberately NOT
 # listed. The point of this repository's quality gate is that changes there are

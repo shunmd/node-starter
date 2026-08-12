@@ -218,9 +218,10 @@ pnpm check:deps
 
 `package.json` and `pnpm-lock.yaml` are protected paths. The
 `protected-file-notice` comment makes such changes visible, while CODEOWNERS
-requires the configured code-owner review. No title marker or label is needed.
+retains ownership metadata for projects that choose to enable code-owner
+review. The template's ruleset requires no title marker, label, or approval.
 That is deliberate -- a new dependency is a supply-chain change, whoever wrote
-the diff.
+the diff, but solo development must remain mergeable.
 
 ## Accepting a dependency exception
 
@@ -291,8 +292,8 @@ Dependabot proposes updates weekly for npm packages and GitHub Actions, grouped
 into one pull request per ecosystem rather than one per package. Its cooldown is
 set to the same 5 days as pnpm's, so it does not propose versions that
 `pnpm install` is then required to refuse. Nothing merges itself: every proposal
-still has to pass `pnpm verify`, the mutation job, and the code-owner review
-that `package.json` and `pnpm-lock.yaml` require.
+still has to pass `pnpm verify` and the mutation job. The template does not
+require an approving review.
 
 To update by hand:
 

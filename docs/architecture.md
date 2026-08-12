@@ -23,7 +23,7 @@ historical rationale.
 | Accepted dependency exceptions       | `infra/policy/dependency-policy.json`      |
 | Workflow (CI) policy                 | `scripts/lib/workflow-policy.ts`           |
 | Dependency update proposals          | `.github/dependabot.yml`                   |
-| Human approval boundary              | `.github/CODEOWNERS`                       |
+| Protected-path ownership metadata    | `.github/CODEOWNERS`                       |
 | CI execution                         | `.github/workflows/ci.yml`                 |
 | GitHub repository desired state      | `infra/github/*.json`                      |
 | GitHub settings API reconciliation   | `scripts/github-settings.ts`               |
@@ -54,13 +54,16 @@ migrate there to escape the coverage scope. `scripts/github-settings.ts`
 predates the split and is exempt from both; the proposal to decompose it is in
 `docs/ai/improvement-backlog.md`.
 
-## The human approval boundary
+## Merge protection without mandatory approval
 
-Two mechanisms, doing different jobs. The CI `protected-file-notice` job
-records which enforcement-layer paths changed in an informational pull request
-comment; it does not inspect or require a title marker or label. The approval is
-`.github/CODEOWNERS`, enforced by the `main` ruleset as a required code-owner
-review for matching paths, which an author cannot grant themselves.
+The CI `protected-file-notice` job records which enforcement-layer paths changed
+in an informational pull request comment; it does not inspect or require a
+title marker, label, or approval. The `main` ruleset requires the `check` and
+`mutation` status checks and resolved review threads, but deliberately does not
+require an approving review, code-owner review, or approval after the last push.
+
+`.github/CODEOWNERS` remains ownership metadata for adopters who choose to
+enable code-owner review in their generated project.
 
 `src/` and `docs/` are deliberately absent from CODEOWNERS. Changes there are
 judged by the checks; requiring a human to read them would restore the review

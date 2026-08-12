@@ -76,7 +76,7 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Coverage        | Function Coverage (per file)  | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
 | Coverage        | Coverage on New Code          | `>= 80%`           | Approximated by the per-file threshold; see 4.11                               |
 | Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate job)                                               |
-| Review          | Enforcement-layer Approval    | code owner review  | Active: `.github/CODEOWNERS` + `main` ruleset                                  |
+| Review          | Human Approval                | not required       | Active: `main` ruleset keeps CI and thread-resolution gates                    |
 | Review          | Protected-file Notice         | informational      | Active: CI `protected-file-notice`                                             |
 | Shell           | Shell Lint Finding            | `= 0`              | Not measured: ShellCheck not in the pinned toolchain                           |
 
@@ -352,25 +352,22 @@ pnpm check:workflows
   それに影響できる者はコマンドを実行できる。`env:`経由で渡す。
 - `actions/checkout`は`persist-credentials: false`を指定する。
 
-### 4.15 人間の承認境界
+### 4.15 承認なしのマージ保護
 
 Quality Gateが「人的レビューの卒業」を意味するのは、機械的に判定できる
-範囲についてだけである。Enforcement Layer自体の変更は、その範囲の外に
-ある。ゲートを緩める変更はゲートを通ってしまう。
+範囲についてだけである。Enforcement Layer自体の変更も、保護ファイル通知
+で可視化しつつ、個人開発で承認待ちにならないよう承認を必須にしない。
 
 境界は二重になっており、役割が異なる。
 
-| 仕組み                         | 何を保証するか                           |
-| ------------------------------ | ---------------------------------------- |
-| CI `protected-file-notice`     | 変更パスをPRコメントに記録する情報通知   |
-| `.github/CODEOWNERS` + ruleset | 対象パスの承認。作者自身では与えられない |
+| 仕組み                     | 何を保証するか                                |
+| -------------------------- | --------------------------------------------- |
+| CI `protected-file-notice` | 変更パスをPRコメントに記録する情報通知        |
+| `main` ruleset             | `check`、`mutation`、スレッド解決を必須にする |
 
 前者は制御ではなく情報通知であり、PRのtitleやlabelも要求しない。実際の
-承認は`.github/CODEOWNERS`とmain rulesetの`require_code_owner_review`で
-対象パスに対してだけ要求され、これはPR作者が自分に与えることができない。
-
-`require_last_push_approval: true`も同じ理由で必須である。これがないと、
-承認を得た後に追加pushした内容が未承認のまま入る。
+承認は要求しない。`.github/CODEOWNERS`は、必要なプロジェクトが後から
+code-owner reviewを有効化するためのメタデータとして残している。
 
 ## 5. CIの実行方針
 

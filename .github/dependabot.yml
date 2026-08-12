@@ -3,9 +3,9 @@
 # package stayed vulnerable until somebody happened to look.
 #
 # Dependabot only opens pull requests. Every one of them still has to pass
-# `pnpm verify` (including `pnpm check:deps`), the mutation job, and the
-# code-owner review that `.github/CODEOWNERS` requires for `package.json` and
-# `pnpm-lock.yaml`. Nothing here merges itself.
+# `pnpm verify` (including `pnpm check:deps`) and the mutation job. The template
+# does not require an approving review, so solo maintainers can merge after the
+# gates pass. Nothing here merges itself.
 version: 2
 
 updates:
