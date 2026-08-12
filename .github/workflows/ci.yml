@@ -3,7 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+  # `labeled`, `unlabeled` and `edited` are not in the default set, and without
+  # them the approval route below is unreachable: guard-enforcement-layer reads
+  # the pull request's title and labels, but adding either would not re-run the
+  # workflow, so an approved change would stay red until someone pushed an
+  # unrelated commit.
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
 
 # Least privilege by default. A job that needs more asks for it explicitly.
 permissions:

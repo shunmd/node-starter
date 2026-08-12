@@ -71,6 +71,8 @@ To bump pnpm:
 4. `pnpm check` — `check:toolchain` verifies the age and that the pins agree.
 5. Open the pull request with `TOOLCHAIN-CHANGE-APPROVED` in the title, or the
    `toolchain` label. Without it, `guard-enforcement-layer` fails the build.
+   Adding either afterwards is fine — the workflow listens for `edited` and
+   `labeled` as well, so the check re-runs without needing a new commit.
 
 Bumping Node is the same, using `nodejs.org/dist/index.json` for the release
 date, and updating `engines.node` and `devEngines.runtime.version` as well.
