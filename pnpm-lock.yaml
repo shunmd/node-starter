@@ -243,12 +243,21 @@ importers:
       eslint-plugin-promise:
         specifier: ^7.3.0
         version: 7.3.0(eslint@10.8.0(jiti@2.7.0)(supports-color@7.2.0))
+      eslint-plugin-security:
+        specifier: ^4.0.1
+        version: 4.0.1
       eslint-plugin-sonarjs:
         specifier: 4.2.0
         version: 4.2.0(eslint@10.8.0(jiti@2.7.0)(supports-color@7.2.0))
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
       globals:
         specifier: ^17.9.0
         version: 17.9.0
+      jscpd:
+        specifier: ^5.0.14
+        version: 5.0.14
       knip:
         specifier: 6.31.0
         version: 6.31.0
@@ -1372,6 +1381,10 @@ packages:
     peerDependencies:
       eslint: ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0
 
+  eslint-plugin-security@4.0.1:
+    resolution: {integrity: sha512-/lZCkOxPOWaf1jXAqgICrS8St3BMBccIPvhOSUYuV6VCr1o5nFVG998FnTLt6w2Nxb8Uo0nM8fzmnhp+GY/aEg==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
   eslint-plugin-sonarjs@4.2.0:
     resolution: {integrity: sha512-bqADfuNtTL7VK6RU29eoiFTtaaBKIpVPuX3bOl+rBpWSBa0zIBVZlqZNZQjfP6s4iXkAJokv5IsD8OsACkwApg==}
     peerDependencies:
@@ -1429,6 +1442,10 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
+
+  fast-check@4.9.0:
+    resolution: {integrity: sha512-7ms6T7SybUev/PQITciI0yLM2pOSFy5zpG8Ty7tQofcVaQUvrMXp6CBwqF6fThLCLOrfBtuHAtwq6Yu4XPCllg==}
+    engines: {node: '>=12.17.0'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -1651,6 +1668,44 @@ packages:
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
+
+  jscpd-darwin-arm64@5.0.14:
+    resolution: {integrity: sha512-Ojjl79SBuj9tEW6WbjZ1a/1ZOR89dneH9yLQYQu8WyWaQownttnx7RYFEHU6aGhS4jIvwUEbr+1wxzFTb37cwg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  jscpd-darwin-x64@5.0.14:
+    resolution: {integrity: sha512-DxFg5XvjMZ81iVeqillnM5apqcGCfNTbroNF+mPLr7RkHLGH6mudLgtO+ILL/hfpZXy1bF9oIY5BSudPmN/k9A==}
+    cpu: [x64]
+    os: [darwin]
+
+  jscpd-linux-arm64-gnu@5.0.14:
+    resolution: {integrity: sha512-1uw+XBHEt9pONXNICSp5HpaVWPjG6mQ6deDXaq9Yb0xCNJkX4/8gmn0vhzekIyZD2DspRYKPUolbDsqm/HEdYg==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  jscpd-linux-x64-gnu@5.0.14:
+    resolution: {integrity: sha512-dFTbyyrm+Z9pcXIVzJQCw8QAgiNqIiO69sm4AfA7/wFdPoizoVzjhaXsYXcSV4bs0aoPiWbNazg0J0HgslT/5A==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  jscpd-linux-x64-musl@5.0.14:
+    resolution: {integrity: sha512-SayS7qQJvixyy9eR0+UjepkTsUUwqvlsiuSxfIdHgG2qzqoh/thnkgiu4By8fsiiDpQONsQrRrZDwHRQ3GDrBQ==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  jscpd-windows-x64-msvc@5.0.14:
+    resolution: {integrity: sha512-DqjxlVkUanlahGgY2lY7Zkrau4BUTI+AwWky+bPGK4kSK2AIOaUziY9Q19u8b58idXmJA9FKK98Fuu4ajNXVjQ==}
+    cpu: [x64]
+    os: [win32]
+
+  jscpd@5.0.14:
+    resolution: {integrity: sha512-zge+FPZZAymt2Do5Z0+QHyIn4/XcUhrO/W7of9HcHZfx2AK8++dYhLA1uWtwXj47ml3Of8PbcUW4wUWvYMCc3w==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
@@ -1928,6 +1983,9 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
+
+  pure-rand@8.4.2:
+    resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
 
   qs@6.15.1:
     resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
@@ -3357,6 +3415,10 @@ snapshots:
       '@eslint-community/eslint-utils': 4.10.1(eslint@10.8.0(jiti@2.7.0)(supports-color@7.2.0))
       eslint: 10.8.0(jiti@2.7.0)(supports-color@7.2.0)
 
+  eslint-plugin-security@4.0.1:
+    dependencies:
+      safe-regex: 2.1.1
+
   eslint-plugin-sonarjs@4.2.0(eslint@10.8.0(jiti@2.7.0)(supports-color@7.2.0)):
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -3460,6 +3522,10 @@ snapshots:
       yoctocolors: 2.2.0
 
   expect-type@1.4.0: {}
+
+  fast-check@4.9.0:
+    dependencies:
+      pure-rand: 8.4.2
 
   fast-deep-equal@3.1.3: {}
 
@@ -3642,6 +3708,33 @@ snapshots:
   js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
+
+  jscpd-darwin-arm64@5.0.14:
+    optional: true
+
+  jscpd-darwin-x64@5.0.14:
+    optional: true
+
+  jscpd-linux-arm64-gnu@5.0.14:
+    optional: true
+
+  jscpd-linux-x64-gnu@5.0.14:
+    optional: true
+
+  jscpd-linux-x64-musl@5.0.14:
+    optional: true
+
+  jscpd-windows-x64-msvc@5.0.14:
+    optional: true
+
+  jscpd@5.0.14:
+    optionalDependencies:
+      jscpd-darwin-arm64: 5.0.14
+      jscpd-darwin-x64: 5.0.14
+      jscpd-linux-arm64-gnu: 5.0.14
+      jscpd-linux-x64-gnu: 5.0.14
+      jscpd-linux-x64-musl: 5.0.14
+      jscpd-windows-x64-msvc: 5.0.14
 
   jsesc@3.1.0: {}
 
@@ -3904,6 +3997,8 @@ snapshots:
       sisteransi: 1.0.5
 
   punycode@2.3.1: {}
+
+  pure-rand@8.4.2: {}
 
   qs@6.15.1:
     dependencies:

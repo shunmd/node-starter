@@ -4,6 +4,7 @@ import vitest from '@vitest/eslint-plugin';
 import prettierConfig from 'eslint-config-prettier';
 import n from 'eslint-plugin-n';
 import promise from 'eslint-plugin-promise';
+import security from 'eslint-plugin-security';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
@@ -44,6 +45,7 @@ export default tseslint.config(
 
   n.configs['flat/recommended-module'],
   promise.configs['flat/recommended'],
+  security.configs.recommended,
   comments.recommended,
 
   {
@@ -157,6 +159,34 @@ export default tseslint.config(
       // Redundant with @typescript-eslint/no-floating-promises, which is
       // type-aware and therefore more accurate.
       'promise/catch-or-return': 'off',
+
+      // Size and shape limits catch the same "this needs to be split up"
+      // signal complexity does, from a different angle. Thresholds follow the
+      // Quality Gate guideline; skipBlankLines/skipComments keep them about
+      // code, not prose.
+      'max-lines': [
+        'error',
+        { max: 300, skipBlankLines: true, skipComments: true },
+      ],
+      'max-lines-per-function': [
+        'error',
+        { max: 60, skipBlankLines: true, skipComments: true },
+      ],
+      'max-depth': ['error', 4],
+      'max-params': ['error', 4],
+      'max-nested-callbacks': ['error', 3],
+
+      // eslint-plugin-security's object-injection check flags every dynamic
+      // property access, including type-checked, non-attacker-controlled
+      // ones (`record[key]` for a `key: keyof T`), which is most of them in a
+      // strictly typed codebase. It has no way to distinguish those from a
+      // real injection sink, so it is off in favour of the type checker.
+      'security/detect-object-injection': 'off',
+      // Fires on ordinary `===`/`??` comparisons of any string, not just
+      // secret comparisons, so it is not a reliable signal here. A real
+      // constant-time-compare need is a case for `crypto.timingSafeEqual`,
+      // reviewed by hand.
+      'security/detect-possible-timing-attacks': 'off',
     },
     plugins: {
       sonarjs,
@@ -183,6 +213,18 @@ export default tseslint.config(
       // their interface, and printing to stderr is how they report.
       'n/no-process-exit': 'off',
       'no-console': 'off',
+      // Operational scripts read top-to-bottom as a single procedure; the
+      // size limits below exist to keep library code composable, which does
+      // not apply here.
+      'max-lines': 'off',
+      'max-lines-per-function': 'off',
+      // These scripts build file and RegExp paths from repository-local
+      // config (mise.toml paths, ignore patterns) that a maintainer, not an
+      // attacker, controls. The literal-argument checks exist for
+      // request-handling code that resolves paths from user input, which
+      // none of these scripts do.
+      'security/detect-non-literal-fs-filename': 'off',
+      'security/detect-non-literal-regexp': 'off',
     },
   },
 

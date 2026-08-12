@@ -38,7 +38,7 @@ git fetch --quiet template main
 git diff --name-status HEAD template/main -- \
   mise.toml pnpm-workspace.yaml tsconfig.json eslint.config.js \
   prettier.config.js vitest.config.ts stryker.config.json knip.jsonc \
-  .dependency-cruiser.json .editorconfig .gitattributes .prettierignore \
+  .dependency-cruiser.json .jscpd.json .editorconfig .gitattributes .prettierignore \
   .github/workflows/ci.yml scripts/check-toolchain-age.ts \
   scripts/secret-scan.sh AGENTS.md
 ```
@@ -52,14 +52,14 @@ files automatically; review each difference before adopting it.
 
 Use the following order. Keep one clear source of truth for every setting.
 
-| Area              | Adopt or merge                                                                      | Destination-specific decision                                                  |
-| ----------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Toolchain         | `mise.toml`, `mise.lock`, `pnpm-workspace.yaml`                                     | Whether the project can move to the pinned Node and pnpm versions              |
-| Package metadata  | `package.json`, `pnpm-lock.yaml`                                                    | Project name, runtime dependencies, scripts, package publication settings      |
-| Type and style    | `tsconfig.json`, `eslint.config.js`, `prettier.config.js`, `.prettierignore`        | Existing compiler options and generated-file boundaries                        |
-| Tests and quality | `vitest.config.ts`, `stryker.config.json`, `knip.jsonc`, `.dependency-cruiser.json` | Test roots, application entrypoints, mutation scope, and dependency boundaries |
-| Security and CI   | `scripts/secret-scan.sh`, `.github/workflows/ci.yml`                                | Existing deployment, release, preview, and environment-specific jobs           |
-| Agent context     | `AGENTS.md`, `CLAUDE.md`, `docs/index.md`                                           | Durable project rules and documentation ownership                              |
+| Area              | Adopt or merge                                                                                     | Destination-specific decision                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Toolchain         | `mise.toml`, `mise.lock`, `pnpm-workspace.yaml`                                                    | Whether the project can move to the pinned Node and pnpm versions              |
+| Package metadata  | `package.json`, `pnpm-lock.yaml`                                                                   | Project name, runtime dependencies, scripts, package publication settings      |
+| Type and style    | `tsconfig.json`, `eslint.config.js`, `prettier.config.js`, `.prettierignore`                       | Existing compiler options and generated-file boundaries                        |
+| Tests and quality | `vitest.config.ts`, `stryker.config.json`, `knip.jsonc`, `.dependency-cruiser.json`, `.jscpd.json` | Test roots, application entrypoints, mutation scope, and dependency boundaries |
+| Security and CI   | `scripts/secret-scan.sh`, `.github/workflows/ci.yml`                                               | Existing deployment, release, preview, and environment-specific jobs           |
+| Agent context     | `AGENTS.md`, `CLAUDE.md`, `docs/index.md`                                                          | Durable project rules and documentation ownership                              |
 
 Do not replace an existing workflow wholesale. Merge the `check` and required
 `mutation` jobs into the current workflow, preserving deployment and release
