@@ -41,32 +41,30 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 別の測定基盤が必要、`Pending`は導入判断または安全な依存解決が残っている
 項目を示す。未測定・保留の項目をPASS扱いにして隠してはならない。
 
-| Category        | Metric                                    | Gate               | このリポジトリ                                                                  |
-| --------------- | ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------- |
-| Formatting      | Formatter Error                           | `= 0`              | Active: Prettier                                                                |
-| Lint            | Lint Error / Warning                      | `= 0`              | Active: ESLint + `--max-warnings 0`                                             |
-| Type Safety     | Type Error                                | `= 0`              | Active: `tsc --noEmit`                                                          |
-| Static Analysis | Critical / High Issue                     | `= 0`              | Not measured: SonarQube not adopted                                             |
-| Security        | SAST Finding (local)                      | `= 0`              | Active: ESLint `eslint-plugin-security`                                         |
-| Security        | SAST Finding (CodeQL)                     | `= 0`              | Conditional: public repos, or private repos with `GHAS_ENABLED=true` (see §4.4) |
-| Complexity      | Cyclomatic Complexity                     | `<= 10 / function` | Active: ESLint                                                                  |
-| Complexity      | Cognitive Complexity                      | `<= 15 / function` | Active: ESLint SonarJS rules                                                    |
-| Complexity      | Function / File Size                      | see below          | Active: ESLint `max-lines*`, `max-depth`, `max-params`, `max-nested-callbacks`  |
-| Duplication     | Repeated Branch / Function                | `= 0`              | Active: ESLint SonarJS rules                                                    |
-| Duplication     | Duplicated Lines (whole tree)             | `<= 2%`            | Active: jscpd (`pnpm duplication`, whole-tree, not diff-based)                  |
-| Duplication     | Duplicated Lines on New Code              | `<= 3%`            | Not measured: no line-diff tool                                                 |
-| Dependency      | Vulnerable / Disallowed Dependency (diff) | `= 0`              | Conditional: public repos, or private repos with `GHAS_ENABLED=true` (see §4.4) |
-| Dead Code       | Unused File                               | `= 0`              | Active: Knip                                                                    |
-| Dead Code       | Unused Dependency                         | `= 0`              | Active: Knip                                                                    |
-| Dead Code       | Unused Export / Type                      | `= 0`              | Active: Knip                                                                    |
-| Architecture    | Circular Dependency                       | `= 0`              | Active: dependency-cruiser                                                      |
-| Architecture    | Dependency Rule Violation                 | `= 0`              | Active: dependency-cruiser rules                                                |
-| Security        | Secret Finding                            | `= 0`              | Active: Gitleaks                                                                |
-| Test            | Failed Test                               | `= 0`              | Active: Vitest                                                                  |
-| Coverage        | Line Coverage                             | `>= 80%`           | Active: Vitest coverage                                                         |
-| Coverage        | Branch Coverage                           | `>= 80%`           | Active: Vitest coverage                                                         |
-| Coverage        | Function Coverage                         | `>= 80%`           | Active: Vitest coverage                                                         |
-| Mutation        | Mutation Score                            | `>= 80%`           | Active: StrykerJS (separate)                                                    |
+| Category        | Metric                        | Gate               | このリポジトリ                                                                 |
+| --------------- | ----------------------------- | ------------------ | ------------------------------------------------------------------------------ |
+| Formatting      | Formatter Error               | `= 0`              | Active: Prettier                                                               |
+| Lint            | Lint Error / Warning          | `= 0`              | Active: ESLint + `--max-warnings 0`                                            |
+| Type Safety     | Type Error                    | `= 0`              | Active: `tsc --noEmit`                                                         |
+| Static Analysis | Critical / High Issue         | `= 0`              | Not measured: SonarQube not adopted                                            |
+| Security        | SAST Finding (local)          | `= 0`              | Active: ESLint `eslint-plugin-security`                                        |
+| Complexity      | Cyclomatic Complexity         | `<= 10 / function` | Active: ESLint                                                                 |
+| Complexity      | Cognitive Complexity          | `<= 15 / function` | Active: ESLint SonarJS rules                                                   |
+| Complexity      | Function / File Size          | see below          | Active: ESLint `max-lines*`, `max-depth`, `max-params`, `max-nested-callbacks` |
+| Duplication     | Repeated Branch / Function    | `= 0`              | Active: ESLint SonarJS rules                                                   |
+| Duplication     | Duplicated Lines (whole tree) | `<= 2%`            | Active: jscpd (`pnpm duplication`, whole-tree, not diff-based)                 |
+| Duplication     | Duplicated Lines on New Code  | `<= 3%`            | Not measured: no line-diff tool                                                |
+| Dead Code       | Unused File                   | `= 0`              | Active: Knip                                                                   |
+| Dead Code       | Unused Dependency             | `= 0`              | Active: Knip                                                                   |
+| Dead Code       | Unused Export / Type          | `= 0`              | Active: Knip                                                                   |
+| Architecture    | Circular Dependency           | `= 0`              | Active: dependency-cruiser                                                     |
+| Architecture    | Dependency Rule Violation     | `= 0`              | Active: dependency-cruiser rules                                               |
+| Security        | Secret Finding                | `= 0`              | Active: Gitleaks                                                               |
+| Test            | Failed Test                   | `= 0`              | Active: Vitest                                                                 |
+| Coverage        | Line Coverage                 | `>= 80%`           | Active: Vitest coverage                                                        |
+| Coverage        | Branch Coverage               | `>= 80%`           | Active: Vitest coverage                                                        |
+| Coverage        | Function Coverage             | `>= 80%`           | Active: Vitest coverage                                                        |
+| Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate)                                                   |
 
 いずれかの必須項目がGateを満たさない場合、Quality GateはFAILである。
 
@@ -96,9 +94,7 @@ Toolchain policy
 
 CIの`check` Jobは同じ `pnpm verify` を実行する。`pnpm check` は互換エイリアス
 であり、別の品質基準ではない。Mutation Testingは`mutation` Jobで
-`pnpm test:mutation`を実行する。CodeQLとDependency Reviewは`check` Jobの
-外側の別ワークフローであり、リポジトリの可視性・GHASライセンスに応じて
-実行有無が変わる(§4.4)。`check` Jobの結果はこれらの実行有無に依存しない。
+`pnpm test:mutation`を実行する。
 
 現在の `verify` がPASSすることは、通常ゲートに含まれるActive項目を満たした
 ことを示す。Mutation TestingはActiveであり、実行時間のため別Job・別ゲート
@@ -171,17 +167,6 @@ pnpm lint
 Critical / HighというSeverity分類、既存Issueとの差分管理、変更行の重複率
 3%はESLintだけでは再現できない。これらを測定済みとは扱わず、必要になった
 場合は別のローカルツールを選定してから導入する。
-
-コミット済みコードに対するdataflow/taint解析はCodeQL
-(`.github/workflows/codeql.yml`)で補完する。CodeQLのコードスキャンは
-Publicリポジトリでは無料だが、Privateリポジトリでは
-GitHub Advanced Security (GHAS) ライセンスが無いと`analyze`ステップが
-失敗する。本テンプレートはREADME.mdの標準フローで
-`--private`作成を案内しているため、ワークフローは既定でPrivateリポジトリ
-上ではスキップされる。GHASライセンスがあるリポジトリでは、リポジトリ変数
-`GHAS_ENABLED`を`true`に設定すると有効化される。Publicリポジトリでは常に
-実行される。同じ条件は`.github/workflows/dependency-review.yml`
-(依存関係の脆弱性・ライセンス差分チェック)にも適用される。
 
 ### 4.5 Cyclomatic Complexity
 
