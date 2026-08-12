@@ -1,5 +1,15 @@
 # Who must approve what.
 #
+# ADOPTERS: REPLACE @shunmd BEFORE ENABLING THE RULESET.
+#
+# A code owner must have write access to the repository the file lives in. In a
+# generated project this file still names the template author, who has none --
+# so `require_code_owner_review` in infra/github/rulesets/main.json would demand
+# an approval that nobody present can give, and every pull request touching a
+# protected path would be unmergeable. Replace every @shunmd below with your own
+# account or team, then apply the ruleset. See the customization checklist in
+# README.md.
+#
 # The `main` ruleset requires a code owner's review, so every pattern below is
 # a hard approval boundary: a pull request that touches a matching path cannot
 # merge on the author's own say-so, and an agent cannot grant it by editing a

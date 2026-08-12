@@ -107,7 +107,13 @@ jobs:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
-          protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.github/(workflows/|CODEOWNERS|dependabot\.yml)|infra/|scripts/)'
+          # Must stay in step with .github/CODEOWNERS and the list in
+          # docs/development-guide.md#protected-enforcement-layer. `.github/` is
+          # matched whole rather than file by file: a composite action or an
+          # issue template added later is enforcement-layer code too, and a list
+          # that has to be extended for each new file is a list that will be out
+          # of date the first time someone forgets.
+          protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.editorconfig|\.gitattributes|\.github/|infra/|scripts/|AGENTS\.md|CLAUDE\.md)'
           changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
 
           if [ -z "${changed}" ]; then

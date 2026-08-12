@@ -196,6 +196,14 @@ Nothing syncs automatically — the script shows the diff and you decide.
 
 Work through this before your first real commit.
 
+- [ ] **`.github/CODEOWNERS` — replace every `@shunmd` with your own account or
+      team, and do it before applying the `main` ruleset.** A code owner needs
+      write access to the repository the file lives in, so until this is
+      changed `require_code_owner_review` asks for an approval nobody present
+      can give, and every pull request touching a protected path is stuck.
+- [ ] `infra/policy/dependency-policy.json` — the accepted advisories and
+      licences are the template's risk decisions, not yours. Re-read them, and
+      set `owner` to whoever is actually accountable.
 - [ ] `package.json` — set `name`, `description`, `license`, and remove
       `"private": true` if this will be published.
 - [ ] `README.md` — replace this file with your project's own. Keep the

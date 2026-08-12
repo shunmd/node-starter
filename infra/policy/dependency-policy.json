@@ -20,15 +20,9 @@
         "owner": "repository maintainer"
       },
       {
-        "package": "lightningcss",
+        "package": "lightningcss*",
         "license": "MPL-2.0",
-        "reason": "Transitive build-time dependency of Vitest. MPL-2.0 is file-level copyleft and its source is unmodified, so redistribution obligations do not extend to this project's own files.",
-        "owner": "repository maintainer"
-      },
-      {
-        "package": "lightningcss-linux-x64-gnu",
-        "license": "MPL-2.0",
-        "reason": "Platform binary for lightningcss; same assessment as lightningcss.",
+        "reason": "Transitive build-time dependency of Vitest, plus whichever of its platform binaries pnpm installs on the current machine. MPL-2.0 is file-level copyleft and the source is unmodified, so redistribution obligations do not extend to this project's own files. The trailing * is deliberate: naming one exact binary would make this exception both incomplete and stale on every platform other than the one it was written on.",
         "owner": "repository maintainer"
       },
       {

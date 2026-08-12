@@ -156,6 +156,44 @@ describe('parseDependencyPolicy', () => {
     ).toThrow('YYYY-MM-DD');
   });
 
+  it('rejects a date-shaped string that is not a real calendar date', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-99-30',
+            },
+          ],
+        },
+      }),
+    ).toThrow('YYYY-MM-DD');
+  });
+
+  it('rejects a day that does not exist in that month', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-02-30',
+            },
+          ],
+        },
+      }),
+    ).toThrow('YYYY-MM-DD');
+  });
+
   it('rejects an exception entry that is not an object', () => {
     expect(() =>
       parseDependencyPolicy({
@@ -382,6 +420,70 @@ describe('evaluateLicenses', () => {
     expect(evaluateLicenses([usage()], accepted)).toStrictEqual([
       expect.stringContaining('Delete the stale exception'),
     ]);
+  });
+
+  it('lets a trailing * cover a package name prefix', () => {
+    const prefixed = policy({
+      licenseExceptions: [
+        {
+          package: 'lightningcss*',
+          license: 'MPL-2.0',
+          reason: REASON,
+          owner: OWNER,
+        },
+      ],
+    });
+    expect(
+      evaluateLicenses(
+        [
+          usage({ package: 'lightningcss', license: 'MPL-2.0' }),
+          usage({ package: 'lightningcss-darwin-arm64', license: 'MPL-2.0' }),
+        ],
+        prefixed,
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('does not treat a prefix exception as stale when only some variants are installed', () => {
+    const prefixed = policy({
+      licenseExceptions: [
+        {
+          package: 'lightningcss*',
+          license: 'MPL-2.0',
+          reason: REASON,
+          owner: OWNER,
+        },
+      ],
+    });
+    expect(
+      evaluateLicenses(
+        [usage({ package: 'lightningcss-linux-x64-gnu', license: 'MPL-2.0' })],
+        prefixed,
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('still requires the licence to match, prefix or not', () => {
+    const prefixed = policy({
+      licenseExceptions: [
+        {
+          package: 'lightningcss*',
+          license: 'MPL-2.0',
+          reason: REASON,
+          owner: OWNER,
+        },
+      ],
+    });
+    const problems = evaluateLicenses(
+      [
+        usage({
+          package: 'lightningcss-darwin-arm64',
+          license: 'GPL-3.0-only',
+        }),
+      ],
+      prefixed,
+    );
+    expect(problems[0]).toContain('GPL-3.0-only');
   });
 
   it('reports every offending package rather than only the first', () => {

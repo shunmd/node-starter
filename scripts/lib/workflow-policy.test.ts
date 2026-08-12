@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkWorkflow, checkWorkflows } from './workflow-policy.ts';
+import {
+  checkActionManifest,
+  checkWorkflow,
+  checkWorkflows,
+} from './workflow-policy.ts';
 
 const PINNED_CHECKOUT =
   'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
@@ -22,9 +26,14 @@ jobs:
 ${steps}`;
 }
 
+/** checkWorkflow returns local references too; the tests assert on problems. */
+function problemsOf(source: string): readonly string[] {
+  return checkWorkflow(source).problems;
+}
+
 describe('checkWorkflow', () => {
   it('accepts a workflow that satisfies every rule', () => {
-    expect(checkWorkflow(compliantWorkflow())).toStrictEqual([]);
+    expect(problemsOf(compliantWorkflow())).toStrictEqual([]);
   });
 
   it('rejects the pull_request_target trigger', () => {
@@ -32,7 +41,7 @@ describe('checkWorkflow', () => {
       'pull_request:',
       'pull_request_target:',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('pull_request_target'),
     ]);
   });
@@ -42,7 +51,7 @@ describe('checkWorkflow', () => {
       '  pull_request:\n',
       '  [push, pull_request_target]\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('pull_request_target'),
     ]);
   });
@@ -52,7 +61,7 @@ describe('checkWorkflow', () => {
       'on:\n  pull_request:\n',
       'on: push\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([]);
+    expect(problemsOf(source)).toStrictEqual([]);
   });
 
   it('rejects a workflow with no top-level permissions block', () => {
@@ -60,14 +69,14 @@ describe('checkWorkflow', () => {
       'permissions:\n  contents: read\n',
       '',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('permissions'),
     ]);
   });
 
   it('rejects a job without a timeout', () => {
     const source = compliantWorkflow().replace('    timeout-minutes: 15\n', '');
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('timeout-minutes'),
     ]);
   });
@@ -77,7 +86,7 @@ describe('checkWorkflow', () => {
       'timeout-minutes: 15',
       'timeout-minutes: 360',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('the limit is 30'),
     ]);
   });
@@ -86,7 +95,7 @@ describe('checkWorkflow', () => {
     const source = compliantWorkflow(
       '      - uses: actions/checkout@v7\n        with:\n          persist-credentials: false\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('not pinned to a full commit sha'),
     ]);
   });
@@ -95,19 +104,19 @@ describe('checkWorkflow', () => {
     const source = compliantWorkflow(
       '      - uses: actions/checkout@3d3c42e\n        with:\n          persist-credentials: false\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('not pinned to a full commit sha'),
     ]);
   });
 
   it('accepts a local action referenced by path', () => {
     const source = compliantWorkflow('      - uses: ./.github/actions/setup\n');
-    expect(checkWorkflow(source)).toStrictEqual([]);
+    expect(problemsOf(source)).toStrictEqual([]);
   });
 
   it('rejects a checkout that leaves credentials behind', () => {
     const source = compliantWorkflow(`      - uses: ${PINNED_CHECKOUT}\n`);
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('persist-credentials'),
     ]);
   });
@@ -116,7 +125,7 @@ describe('checkWorkflow', () => {
     const source = compliantWorkflow(
       `      - uses: ${PINNED_CHECKOUT}\n        with:\n          persist-credentials: true\n`,
     );
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('persist-credentials'),
     ]);
   });
@@ -125,16 +134,14 @@ describe('checkWorkflow', () => {
     const source = compliantWorkflow(
       '      - run: echo "${{ github.event.pull_request.title }}"\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([
-      expect.stringContaining('run:'),
-    ]);
+    expect(problemsOf(source)).toStrictEqual([expect.stringContaining('run:')]);
   });
 
   it('accepts a run block that reads the same value from the environment', () => {
     const source = compliantWorkflow(
       '      - env:\n          TITLE: ${{ github.event.pull_request.title }}\n        run: echo "${TITLE}"\n',
     );
-    expect(checkWorkflow(source)).toStrictEqual([]);
+    expect(problemsOf(source)).toStrictEqual([]);
   });
 
   it('reports every violation in a job rather than stopping at the first', () => {
@@ -147,31 +154,31 @@ jobs:
       - uses: actions/checkout@v7
       - run: echo "\${{ github.head_ref }}"
 `;
-    expect(checkWorkflow(source)).toHaveLength(5);
+    expect(problemsOf(source)).toHaveLength(5);
   });
 
   it('reports invalid YAML as a single problem', () => {
-    expect(checkWorkflow('name: [unclosed\n')).toStrictEqual([
+    expect(problemsOf('name: [unclosed\n')).toStrictEqual([
       expect.stringContaining('not valid YAML'),
     ]);
   });
 
   it('rejects a document that is not a mapping', () => {
-    expect(checkWorkflow('- a\n- b\n')).toStrictEqual([
+    expect(problemsOf('- a\n- b\n')).toStrictEqual([
       expect.stringContaining('mapping at the top level'),
     ]);
   });
 
   it('rejects a workflow with no jobs', () => {
     expect(
-      checkWorkflow('name: CI\non: push\npermissions:\n  contents: read\n'),
+      problemsOf('name: CI\non: push\npermissions:\n  contents: read\n'),
     ).toStrictEqual([expect.stringContaining('no `jobs` mapping')]);
   });
 
   it('rejects a job that is not a mapping', () => {
     const source =
       'name: CI\non: push\npermissions:\n  contents: read\njobs:\n  check: "nope"\n';
-    expect(checkWorkflow(source)).toStrictEqual([
+    expect(problemsOf(source)).toStrictEqual([
       expect.stringContaining('is not a mapping'),
     ]);
   });
@@ -186,7 +193,108 @@ jobs:
     timeout-minutes: 5
     uses: ./.github/workflows/reusable.yml
 `;
-    expect(checkWorkflow(source)).toStrictEqual([]);
+    expect(problemsOf(source)).toStrictEqual([]);
+  });
+
+  it('rejects a top-level permissions block that grants every write scope', () => {
+    const source = compliantWorkflow().replace(
+      'permissions:\n  contents: read\n',
+      'permissions: write-all\n',
+    );
+    expect(problemsOf(source)).toStrictEqual([
+      expect.stringContaining('every write scope'),
+    ]);
+  });
+
+  it('rejects a job that overrides restrictive permissions with write-all', () => {
+    const source = compliantWorkflow().replace(
+      '    timeout-minutes: 15\n',
+      '    timeout-minutes: 15\n    permissions: write-all\n',
+    );
+    expect(problemsOf(source)).toStrictEqual([
+      expect.stringContaining('job `check` declares'),
+    ]);
+  });
+
+  it('rejects an id-token grant, which mints an OIDC identity for the repository', () => {
+    const source = compliantWorkflow().replace(
+      'permissions:\n  contents: read\n',
+      'permissions:\n  contents: read\n  id-token: write\n',
+    );
+    expect(problemsOf(source)).toStrictEqual([
+      expect.stringContaining('id-token: write'),
+    ]);
+  });
+
+  it('does not demand a timeout on a job that calls a reusable workflow', () => {
+    const source = `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: ./.github/workflows/reusable.yml
+`;
+    expect(problemsOf(source)).toStrictEqual([]);
+  });
+
+  it('records the local action a step uses so the caller can check it was scanned', () => {
+    const result = checkWorkflow(
+      compliantWorkflow('      - uses: ./.github/actions/setup\n'),
+    );
+    expect([...result.localReferences]).toStrictEqual([
+      '.github/actions/setup',
+    ]);
+  });
+});
+
+describe('checkActionManifest', () => {
+  const compliantAction = `name: setup
+runs:
+  using: composite
+  steps:
+    - uses: ${PINNED_CHECKOUT}
+      with:
+        persist-credentials: false
+`;
+
+  it('accepts a composite action whose steps satisfy the step rules', () => {
+    expect(checkActionManifest(compliantAction).problems).toStrictEqual([]);
+  });
+
+  it('rejects an unpinned action inside a composite action', () => {
+    const source = compliantAction.replace(
+      PINNED_CHECKOUT,
+      'actions/checkout@v7',
+    );
+    expect(checkActionManifest(source).problems).toStrictEqual([
+      expect.stringContaining('not pinned to a full commit sha'),
+    ]);
+  });
+
+  it('rejects an expression interpolated into a composite action run block', () => {
+    const source = `name: setup
+runs:
+  using: composite
+  steps:
+    - run: echo "\${{ github.head_ref }}"
+      shell: bash
+`;
+    expect(checkActionManifest(source).problems).toStrictEqual([
+      expect.stringContaining('run:'),
+    ]);
+  });
+
+  it('rejects a manifest with no runs mapping', () => {
+    expect(checkActionManifest('name: setup\n').problems).toStrictEqual([
+      expect.stringContaining('no `runs` mapping'),
+    ]);
+  });
+
+  it('reports invalid YAML as a single problem', () => {
+    expect(checkActionManifest('name: [unclosed\n').problems).toStrictEqual([
+      expect.stringContaining('not valid YAML'),
+    ]);
   });
 });
 
@@ -210,5 +318,58 @@ describe('checkWorkflows', () => {
         { path: '.github/workflows/ci.yml', source: compliantWorkflow() },
       ]),
     ).toStrictEqual([]);
+  });
+
+  it('rejects a local action reference whose manifest was never scanned', () => {
+    const problems = checkWorkflows([
+      {
+        path: '.github/workflows/ci.yml',
+        source: compliantWorkflow('      - uses: ./.github/actions/setup\n'),
+      },
+    ]);
+    expect(problems).toStrictEqual([
+      expect.stringContaining('was not among the scanned manifests'),
+    ]);
+  });
+
+  it('accepts a local action reference whose manifest was scanned and is clean', () => {
+    const problems = checkWorkflows(
+      [
+        {
+          path: '.github/workflows/ci.yml',
+          source: compliantWorkflow('      - uses: ./.github/actions/setup\n'),
+        },
+      ],
+      [
+        {
+          path: '.github/actions/setup',
+          source:
+            'name: setup\nruns:\n  using: composite\n  steps:\n    - run: echo ok\n      shell: bash\n',
+        },
+      ],
+    );
+    expect(problems).toStrictEqual([]);
+  });
+
+  it('applies the step rules to the scanned action manifest as well', () => {
+    const problems = checkWorkflows(
+      [
+        {
+          path: '.github/workflows/ci.yml',
+          source: compliantWorkflow('      - uses: ./.github/actions/setup\n'),
+        },
+      ],
+      [
+        {
+          path: '.github/actions/setup',
+          source:
+            'name: setup\nruns:\n  using: composite\n  steps:\n    - uses: actions/checkout@v7\n',
+        },
+      ],
+    );
+    expect(problems).toStrictEqual([
+      expect.stringContaining('.github/actions/setup'),
+      expect.stringContaining('persist-credentials'),
+    ]);
   });
 });

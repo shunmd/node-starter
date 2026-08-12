@@ -106,13 +106,32 @@ function parseLicenseException(
   };
 }
 
+/**
+ * `2026-99-30` matches the shape of a date and is not one. It matters here
+ * because `evaluateVulnerabilities` compares these lexicographically, so an
+ * impossible month would sort after every real one and suppress the advisory
+ * for years rather than failing to parse.
+ */
+function isCalendarDate(value: string): boolean {
+  if (!DATE_PATTERN.test(value)) {
+    return false;
+  }
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  // Round-tripping also rejects a date that parsed by rolling over, so
+  // `2026-04-31` cannot quietly become the first of May.
+  return parsed.toISOString().startsWith(value);
+}
+
 function parseVulnerabilityException(
   value: unknown,
   context: string,
 ): VulnerabilityException {
   const entry = requireObject(value, context);
   const reviewBy = requireString(entry, 'reviewBy', context);
-  if (!DATE_PATTERN.test(reviewBy)) {
+  if (!isCalendarDate(reviewBy)) {
     throw new Error(`${context}.reviewBy must be a YYYY-MM-DD date`);
   }
   return {
@@ -284,6 +303,21 @@ export function evaluateVulnerabilities(
   return problems;
 }
 
+/**
+ * A licence exception may end in `*`, which matches a package-name prefix.
+ *
+ * This exists for native packages: pnpm installs `lightningcss-darwin-arm64` on
+ * one machine and `lightningcss-linux-x64-gnu` on another, so an exception
+ * naming one exact binary fails on every other platform twice over -- the
+ * installed binary is unexcepted, and the named one is reported stale. A
+ * prefix keeps the exception about the package it is really about.
+ */
+function matchesPackage(pattern: string, name: string): boolean {
+  return pattern.endsWith('*')
+    ? name.startsWith(pattern.slice(0, -1))
+    : pattern === name;
+}
+
 export function evaluateLicenses(
   usages: readonly LicenseUsage[],
   policy: DependencyPolicy,
@@ -298,7 +332,7 @@ export function evaluateLicenses(
     }
     const exception = policy.licenseExceptions.find(
       (candidate) =>
-        candidate.package === usage.package &&
+        matchesPackage(candidate.package, usage.package) &&
         candidate.license === usage.license,
     );
     if (exception === undefined) {
