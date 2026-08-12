@@ -18,8 +18,14 @@ Mutation is deliberately restricted to an explicit local opt-in or the
 protected `workflow_dispatch` run on `main`:
 
 ```sh
-ALLOW_GITHUB_SETTINGS_APPLY=1 node scripts/github-settings.ts --apply
+ALLOW_GITHUB_SETTINGS_APPLY=1 \
+GH_TOKEN="$(gh auth token)" \
+node scripts/github-settings.ts --apply
 ```
+
+The local command obtains the GitHub API token from the authenticated `gh`
+account. That token must have the repository administration and secret metadata
+read permissions required by the GitHub API.
 
 The required `GH_ADMIN_TOKEN` secret is used by drift checks and the apply
 workflow. It must have the repository administration and secret metadata read
