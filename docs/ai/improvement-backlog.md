@@ -33,10 +33,3 @@ well-understood identifiers). The cost — reflexive `eslint-disable` comments a
 generated code contorted to satisfy style rules — outweighs the defect-finding
 value. Individual unicorn rules may still be worth enabling one at a time, with
 a concrete reason each.
-
-### Add a coverage threshold to `vitest.config.ts`
-
-**Why not:** a number chosen by a template is arbitrary, and an arbitrary
-threshold gets lowered the first time it blocks something rather than being
-treated as a real bar. Worth revisiting once the project has a body of tests and
-can pick a number that reflects them.

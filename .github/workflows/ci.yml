@@ -42,10 +42,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # One command, the same one developers run. If this passes, the change
-      # meets the standard; there is no additional CI-only criterion to learn.
+      # The standard gate uses the same command developers run locally.
       - name: Verify
         run: pnpm verify
+
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Mutation test
+        run: pnpm test:mutation
 
   # The repository's rule is that agents may edit docs and code freely, but the
   # enforcement layer -- lint config, CI, toolchain pins, supply-chain settings
@@ -72,7 +89,7 @@ jobs:
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
-          protected_paths='^(eslint\.config\.js|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|\.github/workflows/|scripts/check-toolchain-age\.ts)'
+          protected_paths='^(package\.json|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.github/workflows/|scripts/(check-toolchain-age\.ts|secret-scan\.sh))'
           changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
 
           if [ -z "${changed}" ]; then

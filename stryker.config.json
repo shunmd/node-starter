@@ -9,8 +9,8 @@
   "reporters": ["clear-text", "progress", "html"],
   "thresholds": {
     "high": 80,
-    "low": 60,
-    "break": 60
+    "low": 80,
+    "break": 80
   },
   "timeoutMS": 10000
 }

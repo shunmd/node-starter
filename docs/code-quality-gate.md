@@ -67,7 +67,7 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 
 ## 3. 現行リポジトリの実行入口
 
-通常のローカル検証とCIの入口は次の1つに統一する。
+標準Quality Gateのローカル検証とCI `check` Jobの入口は次の1つに統一する。
 
 ```sh
 pnpm verify
@@ -85,14 +85,17 @@ Toolchain policy
   -> Secret Scan
   -> Unit / Integration Test
   -> Coverage
+  -> Mutation Testing (separate required CI job)
 ```
 
-CIは同じ `pnpm verify` を実行する。`pnpm check` は互換エイリアスであり、
-別の品質基準ではない。
+CIの`check` Jobは同じ `pnpm verify` を実行する。`pnpm check` は互換エイリアス
+であり、別の品質基準ではない。Mutation Testingは`mutation` Jobで
+`pnpm test:mutation`を実行する。
 
 現在の `verify` がPASSすることは、通常ゲートに含まれるActive項目を満たした
-ことを示す。Mutation TestingはActiveだが実行時間のため別ゲートであり、完全
-なQuality Gate判定には`pnpm test:mutation`のPASSも必要である。「Not measured」
+ことを示す。Mutation TestingはActiveであり、実行時間のため別Job・別ゲート
+である。完全なQuality Gate判定には`pnpm test:mutation`のPASSも必要である。
+「Not measured」
 はPASSでもFAILでもなく、別の測定基盤を追加しない限り判定不能である。
 リポジトリの標準ゲートに含めない項目を、実施済みのように表示してはならない。
 
@@ -237,11 +240,8 @@ Coverageを測れるようになった場合は、新規・変更コードにも
 
 ### 4.12 Mutation Testing
 
-Mutation Testingはテストコード自体の検出能力を測る。通常のverifyには
-含めず、Scheduled CIまたは重要なDomain Logicに限定した別Jobで実行する。
-
-推奨基準はMutation Score `>= 80%`、`60%`未満は改善対象とする。実行時間が
-Pull Requestの許容範囲に収まる場合だけ、必須Gateへの昇格を検討する。
+Mutation Testingはテストコード自体の検出能力を測る。Mutation Score
+`>= 80%`を必須Gateとし、通常の`verify`とは分離した必須CI Jobで実行する。
 
 StrykerJSは通常の`verify`とは分離し、`test:mutation`を別ゲートとして実行する。
 現行のStrykerJS CoreはBabel経由で`semver@6.3.1`を引き込むため、既存の
@@ -253,7 +253,8 @@ StrykerJSは通常の`verify`とは分離し、`test:mutation`を別ゲートと
 pnpm test:mutation
 ```
 
-Mutation Scoreは`>= 80%`を必須とし、`60%`未満でコマンドをFAILにする。
+Mutation Scoreは`>= 80%`を必須とし、StrykerJSの`break: 80`でコマンドをFAILに
+する。
 現行のplaceholder実装では9 mutant中9件を殺し、100%を確認している。
 
 ## 5. CIの実行方針
@@ -273,9 +274,9 @@ Format
   -> Quality Gate
 ```
 
-Secret ScanはStatic Analysisと同じ早期検査として扱う。Mutation Testingと
-E2Eは、実行時間とアプリケーションの存在を確認した上で別Jobまたは定期実行
-とする。
+Secret ScanはStatic Analysisと同じ早期検査として扱う。Mutation Testingは
+必須の別Jobで実行する。E2Eはアプリケーションの存在を確認した上で別Jobまたは
+定期実行とする。
 
 ## 6. 例外と既存負債
 

@@ -7,8 +7,9 @@ the enforcement-layer boundary where knowing the procedure is most of the work.
 ## Daily loop
 
 ```sh
-pnpm fix      # format + autofixable lint
-pnpm verify   # the full gate; identical to CI
+pnpm fix             # format + autofixable lint
+pnpm verify          # standard gate; same command as the CI check job
+pnpm test:mutation   # required mutation gate; same command as the CI mutation job
 ```
 
 `pnpm verify` runs `check:toolchain`, `format:check`, `lint`, `typecheck`,
@@ -16,8 +17,9 @@ pnpm verify   # the full gate; identical to CI
 stopping at the first failure. `pnpm check` is a compatibility alias. Individual
 steps exist as separate scripts when you want a faster loop.
 
-There is intentionally no `ci` script. CI runs `pnpm verify`, so there is exactly
-one definition of "passing" and no way for the two to diverge.
+There is intentionally no `ci` script. CI runs `pnpm verify` and
+`pnpm test:mutation` as separate required jobs, so each job uses the same command
+developers run locally.
 
 The policy behind the gate is in
 [`docs/code-quality-gate.md`](code-quality-gate.md). It distinguishes the
@@ -44,7 +46,7 @@ The fast gate includes four checks beyond formatting, linting and types:
   branches and statements. Increase it when the generated project has measured
   business logic; do not add meaningless tests to satisfy a number.
 - `pnpm test:mutation` runs StrykerJS separately from `pnpm verify`. It requires
-  a mutation score of at least 80% and fails below 60%.
+  a mutation score of at least 80% and fails below 80%.
 
 Mutation testing is intentionally a separate, heavy check and is not part of
 `pnpm verify`. StrykerJS is configured with the Vitest runner. Its Babel
@@ -87,9 +89,10 @@ authorization, database migrations, payments, secrets, IAM and production
 infrastructure. For low-risk changes, keep the same task, branch and CI
 boundaries while using a proportionate review.
 
-This template currently provides the local/CI gate (`pnpm verify`) but does not
-provide an issue tracker, staging environment, E2E suite or deployment
-workflow. A generated application must document and enforce those parts itself.
+This template currently provides the standard local/CI gate (`pnpm verify`) and
+the required separate Mutation gate (`pnpm test:mutation`), but does not provide
+an issue tracker, staging environment, E2E suite or deployment workflow. A
+generated application must document and enforce those parts itself.
 The rationale and the boundary between reusable principles and project-specific
 steps are recorded in [ADR 5](decisions/0005-bounded-ai-assisted-development.md).
 
@@ -100,12 +103,20 @@ approval for pull requests that change them:
 
 ```text
 eslint.config.js
+package.json
 tsconfig.json
+prettier.config.js
+.prettierignore
+vitest.config.ts
+stryker.config.json
+knip.jsonc
+.dependency-cruiser.json
 mise.toml
 mise.lock
 pnpm-workspace.yaml
 .github/workflows/
 scripts/check-toolchain-age.ts
+scripts/secret-scan.sh
 ```
 
 The `guard-enforcement-layer` CI job checks these paths. Approval is expressed

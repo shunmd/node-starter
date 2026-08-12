@@ -14,15 +14,17 @@ historical rationale.
 | Formatting                           | `prettier.config.js`                       |
 | Type and code correctness            | `tsconfig.json` and `eslint.config.js`     |
 | Behaviour and coverage               | `vitest.config.ts` and `src/**/*.test.ts`  |
+| Mutation testing                     | `stryker.config.json`                      |
 | Dead code and dependency use         | `knip.jsonc`                               |
 | Dependency boundaries                | `.dependency-cruiser.json`                 |
 | Secret detection                     | `scripts/secret-scan.sh`                   |
 | Toolchain age and coherence          | `scripts/check-toolchain-age.ts`           |
 | CI execution                         | `.github/workflows/ci.yml`                 |
 
-These checks share `pnpm verify`; `pnpm check` is its compatibility alias. A
-rule that a tool can enforce belongs in that tool's configuration, not in an
-agent instruction or a duplicate policy paragraph.
+The standard checks share `pnpm verify`; Mutation Testing runs through the
+required `pnpm test:mutation` job. `pnpm check` is the compatibility alias for
+`pnpm verify`. A rule that a tool can enforce belongs in that tool's
+configuration, not in an agent instruction or a duplicate policy paragraph.
 
 ## Documentation ownership
 

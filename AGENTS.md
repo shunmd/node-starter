@@ -7,7 +7,7 @@ coding agents.
 # Commands
 
 ```sh
-pnpm verify   # the local and CI quality gate
+pnpm verify   # the local standard quality gate
 pnpm fix      # mechanical formatting and lint fixes
 ```
 
@@ -28,7 +28,7 @@ task-specific documentation.
   document and historical rationale to an ADR.
 - A change is complete only when `pnpm verify` passes. Do not weaken a check to
   make it pass; leave an unresolved failure visible.
-- Where tooling does not decide, prefer `type` over `interface`, give errors
+- Where tooling does not decide, prefer `interface` over `type`, give errors
   input context, name tests by behaviour, explain why in comments, and avoid
   barrel files.
 - The enforcement layer and its human-approval boundary are documented in
