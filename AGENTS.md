@@ -13,12 +13,13 @@ this document. If you want to know whether something is allowed, run the check
 ## The one command
 
 ```sh
-pnpm check
+pnpm verify
 ```
 
-Runs, in order: toolchain policy, format check, lint, typecheck, tests. CI runs
-this exact command and nothing else. Green here means the change meets the
-standard.
+Runs, in order: toolchain policy, format check, lint, typecheck, dead-code
+analysis, architecture checks, coverage tests and secret scanning. CI runs this
+exact command and nothing else. Green here means the change meets the standard.
+`pnpm check` remains a compatibility alias for the same gate.
 
 Fixing what is mechanically fixable:
 
@@ -28,7 +29,7 @@ pnpm fix     # prettier --write + eslint --fix
 
 ## Non-negotiables
 
-1. **Finish on green.** Do not report work as complete while `pnpm check`
+1. **Finish on green.** Do not report work as complete while `pnpm verify`
    fails. If you cannot make it pass, say what fails and why, and leave the
    failure visible.
 2. **Never weaken a check to pass it.** Do not add rule overrides, `skipLibCheck`

@@ -8,15 +8,61 @@ tasks where knowing the command is most of the work.
 
 ```sh
 pnpm fix      # format + autofixable lint
-pnpm check    # the full gate; identical to CI
+pnpm verify   # the full gate; identical to CI
 ```
 
-`pnpm check` runs `check:toolchain`, `format:check`, `lint`, `typecheck`, `test`
-in that order, stopping at the first failure. Individual steps exist as separate
-scripts when you want a faster loop.
+`pnpm verify` runs `check:toolchain`, `format:check`, `lint`, `typecheck`,
+`deadcode`, `architecture`, `test:coverage` and `secret:scan` in that order,
+stopping at the first failure. `pnpm check` is a compatibility alias. Individual
+steps exist as separate scripts when you want a faster loop.
 
-There is intentionally no `ci` script. CI runs `pnpm check`, so there is exactly
+There is intentionally no `ci` script. CI runs `pnpm verify`, so there is exactly
 one definition of "passing" and no way for the two to diverge.
+
+## Static analysis and security checks
+
+The fast gate includes four checks beyond formatting, linting and types:
+
+- `pnpm deadcode` runs Knip for unused files, dependencies, exports and exported
+  types. The entry points are explicit in `knip.jsonc`; do not add ignores just
+  to make a report green.
+- `pnpm architecture` runs dependency-cruiser. It rejects cycles, unresolved
+  imports and imports from production code into tests. No layer rule is added
+  because this template has no application architecture yet.
+- `pnpm secret:scan` runs Gitleaks. With staged changes it scans the staged diff;
+  otherwise it scans the working tree. Do not store credentials or add broad
+  allowlists.
+- `pnpm test:coverage` keeps a starting floor of 80% for lines, functions,
+  branches and statements. Increase it when the generated project has measured
+  business logic; do not add meaningless tests to satisfy a number.
+
+Mutation testing is intentionally a separate, heavy check and is not part of
+`pnpm verify`. StrykerJS is not currently lockable under this repository's
+`trustPolicy: no-downgrade`: its current instrumenter chain resolves
+`semver@6.3.1`, which pnpm rejects because the registry trust evidence
+downgraded. The policy remains unchanged; add `test:mutation` only after the
+upstream trust metadata is repaired or a compatible Stryker release resolves
+without that downgrade.
+
+This is a Node template rather than a web application, so Playwright is not
+installed. A generated web application should add it only after it has an
+application start command and a critical user flow to exercise.
+
+## SonarQube CLI
+
+SonarQube CLI is an optional local analysis tool, not part of `pnpm verify`,
+because its analysis and secrets features require external authentication and
+network access. After installing and authenticating it outside this repository,
+use:
+
+```sh
+sonar analyze --staged
+sonar analyze --base main
+```
+
+Keep Sonar credentials in environment variables or the CLI's local credential
+store. Never commit a token, project key containing a secret, or generated
+credential file.
 
 ## AI-assisted change loop
 
@@ -27,7 +73,7 @@ correct or safe. Keep each change bounded and make the decision points visible:
 2. Give the agent one small task and one isolated branch. Keep the task's scope
    and acceptance criteria stable while it is being implemented.
 3. Have the agent inspect the existing code, state a plan, implement the change,
-   update tests and run `pnpm check`.
+   update tests and run `pnpm verify`.
 4. Review the diff against the acceptance criteria and architecture. A separate
    review agent can provide another signal, but an agent review does not replace
    CI or human judgment.
@@ -41,7 +87,7 @@ authorization, database migrations, payments, secrets, IAM and production
 infrastructure. For low-risk changes, keep the same task, branch and CI
 boundaries while using a proportionate review.
 
-This template currently provides the local/CI gate (`pnpm check`) but does not
+This template currently provides the local/CI gate (`pnpm verify`) but does not
 provide an issue tracker, staging environment, E2E suite or deployment
 workflow. A generated application must document and enforce those parts itself.
 The rationale and the boundary between reusable principles and project-specific

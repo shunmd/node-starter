@@ -22,6 +22,9 @@ lib-cov
 coverage
 *.lcov
 
+# Mutation testing reports
+reports/
+
 # nyc test coverage
 .nyc_output
 

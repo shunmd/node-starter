@@ -44,8 +44,8 @@ jobs:
 
       # One command, the same one developers run. If this passes, the change
       # meets the standard; there is no additional CI-only criterion to learn.
-      - name: Check
-        run: pnpm check
+      - name: Verify
+        run: pnpm verify
 
   # The repository's rule is that agents may edit docs and code freely, but the
   # enforcement layer -- lint config, CI, toolchain pins, supply-chain settings

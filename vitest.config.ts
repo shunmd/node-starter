@@ -10,9 +10,15 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.{test,spec}.ts'],
-      // No global threshold is set here. A number invented by a template is
-      // not a quality bar, and a bar nobody chose gets lowered on first
-      // contact. Add thresholds once the project knows what it is testing.
+      thresholds: {
+        // This is a starting bar for the template, not a reason to write
+        // meaningless tests. Raise it when the generated project has measured
+        // business-critical paths that justify a stricter target.
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
     },
   },
 });

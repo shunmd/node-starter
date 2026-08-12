@@ -17,8 +17,9 @@ foundation.
 | Language        | TypeScript 6.0 (`strict` plus everything `strict` leaves off), ESM                          |
 | Lint            | ESLint 10 flat config, typescript-eslint `strictTypeChecked`, no warnings                   |
 | Format          | Prettier, near-default, verified in CI                                                      |
-| Test            | Vitest                                                                                      |
-| CI              | GitHub Actions running the same `pnpm check` you run locally                                |
+| Test            | Vitest with an 80% coverage floor                                                           |
+| CI              | GitHub Actions running the same `pnpm verify` you run locally                               |
+| Static analysis | Knip, dependency-cruiser, Gitleaks                                                          |
 | AI              | `AGENTS.md` as single source of truth, imported by `CLAUDE.md`                              |
 
 ## Prerequisites
@@ -39,34 +40,56 @@ will not be used.
 mise trust        # approve this repo's mise.toml
 mise install      # install Node + pnpm at the pinned versions
 pnpm install      # install dependencies from pnpm-lock.yaml
-pnpm check        # verify everything passes before you change anything
+pnpm verify       # verify everything passes before you change anything
 ```
 
-If `pnpm check` is green on a fresh clone, your environment is correct.
+If `pnpm verify` is green on a fresh clone, your environment is correct.
 
-> **First run only:** `mise install` writes `mise.lock`, which records the
-> resolved versions and their checksums. It is not in this repository yet
-> because it is machine-generated. Commit it as your first commit — from then
-> on, every `mise install` verifies downloads against it instead of trusting
-> whatever the backend serves.
+## VS Code
+
+Workspace extension recommendations are in
+[`.vscode/extensions.json`](.vscode/extensions.json). They cover the tools this
+repository actually uses:
+
+- EditorConfig for the repository-wide editor defaults.
+- ESLint for diagnostics and autofixable lint rules.
+- Prettier for formatting, resolved from the local dependency.
+- Vitest for running and debugging tests from the Testing view.
+- GitHub Actions for workflow authoring and run inspection.
+
+No separate TypeScript extension is recommended. VS Code already provides
+TypeScript language features, while `typescript` in this repository and
+`pnpm typecheck` remain the type-checking authority.
+
+> **First run only:** `mise.lock` records the resolved versions and their
+> checksums. It is committed in this repository, so every `mise install`
+> verifies downloads against it instead of trusting whatever the backend serves.
 
 ## Commands
 
-| Command                | What it does                                                       |
-| ---------------------- | ------------------------------------------------------------------ |
-| `pnpm check`           | **The gate.** Toolchain policy, format, lint, types, tests.        |
-| `pnpm fix`             | Applies every mechanical fix (`prettier --write`, `eslint --fix`). |
-| `pnpm lint`            | ESLint only.                                                       |
-| `pnpm typecheck`       | `tsc --noEmit`.                                                    |
-| `pnpm test`            | Vitest, once.                                                      |
-| `pnpm test:watch`      | Vitest, watching.                                                  |
-| `pnpm test:coverage`   | Vitest with V8 coverage.                                           |
-| `pnpm format:check`    | Prettier in check mode.                                            |
-| `pnpm check:toolchain` | Toolchain pins agree, and are old enough to be trusted.            |
+| Command                | What it does                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm verify`          | **The gate.** Toolchain, format, lint, types, dead code, architecture, coverage, secrets. |
+| `pnpm check`           | Compatibility alias for `pnpm verify`.                                                    |
+| `pnpm fix`             | Applies every mechanical fix (`prettier --write`, `eslint --fix`).                        |
+| `pnpm lint`            | ESLint only.                                                                              |
+| `pnpm typecheck`       | `tsc --noEmit`.                                                                           |
+| `pnpm test`            | Vitest, once.                                                                             |
+| `pnpm test:coverage`   | Vitest with the 80% lines/functions/branches/statements floor.                            |
+| `pnpm deadcode`        | Knip unused files, dependencies and exports.                                              |
+| `pnpm architecture`    | dependency-cruiser circular and production-to-test checks.                                |
+| `pnpm secret:scan`     | Gitleaks scan of staged content or the working tree.                                      |
+| `pnpm test:watch`      | Vitest, watching.                                                                         |
+| `pnpm format:check`    | Prettier in check mode.                                                                   |
+| `pnpm check:toolchain` | Toolchain pins agree, and are old enough to be trusted.                                   |
 
-CI runs `pnpm check` and nothing else, so there is no separate standard to
+CI runs `pnpm verify` and nothing else, so there is no separate standard to
 satisfy and no way for the two to drift apart. There is intentionally no `ci`
 script.
+
+`pnpm verify` is the preferred name for the same gate. It includes toolchain,
+format, lint, type, dead-code, architecture, coverage and secret checks;
+`pnpm check` remains as a compatibility alias.
 
 ## Code quality
 
@@ -111,6 +134,10 @@ and [ADR 5](docs/decisions/0005-bounded-ai-assisted-development.md).
 
 See [`docs/decisions/0004-ai-asset-layout.md`](docs/decisions/0004-ai-asset-layout.md).
 
+The template is not a web application, so Playwright is intentionally not
+installed. Generated web projects should add an `e2e` script and a minimal
+critical-user-flow suite when they have an application to launch.
+
 ## Supply chain
 
 Every npm package — direct and transitive — must have been public for **5 days**
@@ -133,7 +160,7 @@ Read the "Known bypasses" section before relying on any of it.
 ```sh
 pnpm outdated
 pnpm update --latest
-pnpm check
+pnpm verify
 ```
 
 There is no update bot. Adding one is reasonable — configure its cooldown to
@@ -151,7 +178,7 @@ the reason for the friction, is in
 ```sh
 gh repo create my-project --template shunmd/node-starter --private --clone
 cd my-project
-mise trust && mise install && pnpm install && pnpm check
+mise trust && mise install && pnpm install && pnpm verify
 ```
 
 Or use the "Use this template" button on GitHub.
@@ -181,7 +208,7 @@ Work through this before your first real commit.
 - [ ] `docs/decisions/` — ADRs 1–4 describe the template's own decisions. Keep
       them (they explain your setup) and add yours from number 5.
 - [ ] `docs/ai/learnings.md` — clear the seeded entry once it stops being useful.
-- [ ] `mise.lock` — run `mise install` and commit the generated lockfile.
+- [ ] `mise.lock` — verify the pinned lockfile after changing the toolchain.
 - [ ] `LICENSE` — add one if this is going to be shared.
 - [ ] Decide whether you need a build step
       ([how](docs/development-guide.md#building-and-publishing)).
@@ -204,14 +231,19 @@ Work through this before your first real commit.
 ├── eslint.config.js       # Lint rules, with rationale inline.
 ├── prettier.config.js     # Formatting. Deliberately almost empty.
 ├── vitest.config.ts       # Test runner config.
+├── knip.jsonc              # Dead-code and dependency analysis.
+├── .dependency-cruiser.json # Dependency boundary rules.
+├── .vscode/
+│   └── extensions.json     # Workspace extension recommendations.
 ├── .editorconfig          # Editor defaults, incl. for files Prettier ignores.
 ├── .gitattributes         # Line endings; marks lockfiles as generated.
 ├── .prettierignore        # Generated output and lockfiles.
 ├── .github/workflows/
-│   └── ci.yml             # Runs `pnpm check`; guards the enforcement layer.
+│   └── ci.yml             # Runs `pnpm verify`; guards the enforcement layer.
 ├── scripts/
 │   ├── check-toolchain-age.ts  # 5-day policy for Node/pnpm; pin coherence.
-│   └── diff-upstream.sh        # Compare this project against the template.
+│   ├── diff-upstream.sh        # Compare this project against the template.
+│   └── secret-scan.sh          # Gitleaks working-tree/staged-content scan.
 ├── types/
 │   └── untyped-modules.d.ts    # Ambient types for deps that ship none.
 ├── src/

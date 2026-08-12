@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sverweij/dependency-cruiser/main/src/configuration/dependency-cruiser.schema.json",
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "comment": "Production and test modules must not form circular dependency chains.",
+      "severity": "error",
+      "from": {},
+      "to": { "circular": true }
+    },
+    {
+      "name": "no-production-to-test",
+      "comment": "Production code must not import tests or test-only utilities.",
+      "severity": "error",
+      "from": { "path": "^src/|^scripts/" },
+      "to": {
+        "path": "(^|/)(test|tests|test-utils)(/|$)|\\.(test|spec)\\.[^/]+$"
+      }
+    },
+    {
+      "name": "no-unresolved",
+      "comment": "Every dependency in analyzed source must resolve from the pinned toolchain.",
+      "severity": "error",
+      "from": {},
+      "to": { "couldNotResolve": true }
+    }
+  ],
+  "options": {
+    "doNotFollow": "node_modules"
+  }
+}

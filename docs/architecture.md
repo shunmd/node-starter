@@ -13,17 +13,22 @@ That produces three layers.
 
 ### 1. Enforcement (executable)
 
-| Concern                     | Owner                                    |
-| --------------------------- | ---------------------------------------- |
-| Which binaries exist        | `mise.toml` + `mise.lock`                |
-| Which packages are allowed  | `pnpm-workspace.yaml` + `pnpm-lock.yaml` |
-| Layout of code              | `prettier.config.js`                     |
-| Correctness of code         | `tsconfig.json`, `eslint.config.js`      |
-| Behaviour of code           | `vitest.config.ts` + `src/**/*.test.ts`  |
-| Toolchain age and coherence | `scripts/check-toolchain-age.ts`         |
-| All of the above, remotely  | `.github/workflows/ci.yml`               |
+| Concern                      | Owner                                    |
+| ---------------------------- | ---------------------------------------- |
+| Which binaries exist         | `mise.toml` + `mise.lock`                |
+| Which packages are allowed   | `pnpm-workspace.yaml` + `pnpm-lock.yaml` |
+| Layout of code               | `prettier.config.js`                     |
+| Correctness of code          | `tsconfig.json`, `eslint.config.js`      |
+| Behaviour of code            | `vitest.config.ts` + `src/**/*.test.ts`  |
+| Coverage floor               | `vitest.config.ts`                       |
+| Dead code and dependency use | `knip.jsonc`                             |
+| Dependency boundaries        | `.dependency-cruiser.json`               |
+| Secret detection             | `mise.toml` + `scripts/secret-scan.sh`   |
+| Toolchain age and coherence  | `scripts/check-toolchain-age.ts`         |
+| All of the above, remotely   | `.github/workflows/ci.yml`               |
 
-These are wired together by a single entry point, `pnpm check`. Adding a new
+These are wired together by a single entry point, `pnpm verify` (`pnpm check` is
+a compatibility alias). Adding a new
 mechanical rule means adding it to one of these files — never to prose.
 
 ### 2. Durable decisions (written, stable)
