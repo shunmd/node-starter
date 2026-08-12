@@ -104,6 +104,11 @@ config, tsconfig, CI, toolchain pins, supply-chain settings. The
 without an explicit human approval marker, because an agent that can weaken its
 own checks does not have checks.
 
+The recommended AI-assisted workflow is bounded by small tasks, isolated
+branches, independent CI and human approval for production or high-risk
+changes. See [`docs/development-guide.md`](docs/development-guide.md#ai-assisted-change-loop)
+and [ADR 5](docs/decisions/0005-bounded-ai-assisted-development.md).
+
 See [`docs/decisions/0004-ai-asset-layout.md`](docs/decisions/0004-ai-asset-layout.md).
 
 ## Supply chain
