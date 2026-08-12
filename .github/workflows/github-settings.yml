@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 
@@ -68,9 +68,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.apply == true && github.ref == 'refs/heads/main'
     needs: apply-guard
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 5
     env:
-      GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN || github.token }}
+      GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 

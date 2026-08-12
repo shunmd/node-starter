@@ -1,6 +1,10 @@
-import { readFile } from 'node:fs/promises';
+import { execFile as execFileCallback } from 'node:child_process';
+import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+
+const execFile = promisify(execFileCallback);
 
 const repositoryFields = [
   'default_branch',
@@ -42,9 +46,24 @@ const rulesetRuleTypes = new Set([
   'required_status_checks',
 ]);
 
+const pullRequestRuleFields = [
+  'dismiss_stale_reviews_on_push',
+  'require_code_owner_review',
+  'require_last_push_approval',
+  'required_approving_review_count',
+  'required_review_thread_resolution',
+] as const;
+
+const requiredStatusChecksParameterFields = [
+  'do_not_enforce_on_create',
+  'required_status_checks',
+  'strict_required_status_checks_policy',
+] as const;
+
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const githubRoot = join(repositoryRoot, 'infra', 'github');
 const apiVersion = '2022-11-28';
+const apiPageSize = 100;
 
 type JsonObject = Record<string, unknown>;
 
@@ -84,6 +103,11 @@ interface DesiredConfiguration {
   readonly rulesets: readonly JsonObject[];
   readonly environments: readonly JsonObject[];
   readonly secrets: SecretManifest;
+}
+
+interface JsonDocument {
+  readonly path: string;
+  readonly value: unknown;
 }
 
 function isUnknownArray(value: unknown): value is unknown[] {
@@ -201,6 +225,128 @@ function validateRulesetConditions(
   }
 }
 
+function validatePullRequestRule(
+  rule: JsonObject,
+  path: string,
+  errors: string[],
+): void {
+  const parameters = rule['parameters'];
+  if (!isRecord(parameters)) {
+    errors.push(`${path}.parameters must be an object`);
+    return;
+  }
+  assertAllowedKeys(
+    parameters,
+    new Set(pullRequestRuleFields),
+    `${path}.parameters`,
+    errors,
+  );
+  for (const field of pullRequestRuleFields) {
+    const value = parameters[field];
+    if (field === 'required_approving_review_count') {
+      if (
+        !isNumber(value) ||
+        !Number.isInteger(value) ||
+        value < 0 ||
+        value > 6
+      ) {
+        errors.push(
+          `${path}.parameters.${field} must be an integer from 0 to 6`,
+        );
+      }
+    } else if (!isBoolean(value)) {
+      errors.push(`${path}.parameters.${field} must be a boolean`);
+    }
+  }
+}
+
+function validateRequiredStatusChecksRule(
+  rule: JsonObject,
+  path: string,
+  errors: string[],
+): void {
+  const parameters = rule['parameters'];
+  if (!isRecord(parameters)) {
+    errors.push(`${path}.parameters must be an object`);
+    return;
+  }
+  assertAllowedKeys(
+    parameters,
+    new Set(requiredStatusChecksParameterFields),
+    `${path}.parameters`,
+    errors,
+  );
+  for (const field of requiredStatusChecksParameterFields) {
+    const value = parameters[field];
+    if (field !== 'required_status_checks' && !isBoolean(value)) {
+      errors.push(`${path}.parameters.${field} must be a boolean`);
+    }
+  }
+  const statusChecks = parameters['required_status_checks'];
+  if (!isUnknownArray(statusChecks) || statusChecks.length === 0) {
+    errors.push(
+      `${path}.parameters.required_status_checks must be a non-empty array`,
+    );
+    return;
+  }
+  for (const [index, statusCheck] of statusChecks.entries()) {
+    validateRequiredStatusCheck(
+      statusCheck,
+      `${path}.parameters.required_status_checks[${String(index)}]`,
+      errors,
+    );
+  }
+}
+
+function validateRequiredStatusCheck(
+  value: unknown,
+  path: string,
+  errors: string[],
+): void {
+  if (!isRecord(value)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  assertAllowedKeys(
+    value,
+    new Set(['context', 'integration_id']),
+    path,
+    errors,
+  );
+  readRequiredString(value, 'context', path, errors);
+  const integrationId = value['integration_id'];
+  if (
+    integrationId !== undefined &&
+    (!isNumber(integrationId) || !Number.isInteger(integrationId))
+  ) {
+    errors.push(`${path}.integration_id must be an integer when present`);
+  }
+}
+
+function validateRulesetRule(
+  rule: unknown,
+  path: string,
+  errors: string[],
+): void {
+  if (
+    !isRecord(rule) ||
+    !isString(rule['type']) ||
+    !rulesetRuleTypes.has(rule['type'])
+  ) {
+    errors.push(`${path} has an unsupported type`);
+    return;
+  }
+  if (rule['type'] === 'deletion' || rule['type'] === 'non_fast_forward') {
+    assertAllowedKeys(rule, new Set(['type']), path, errors);
+    return;
+  }
+  if (rule['type'] === 'pull_request') {
+    validatePullRequestRule(rule, path, errors);
+    return;
+  }
+  validateRequiredStatusChecksRule(rule, path, errors);
+}
+
 function validateRulesetRules(
   value: JsonObject,
   path: string,
@@ -212,13 +358,7 @@ function validateRulesetRules(
     return;
   }
   for (const [index, rule] of rules.entries()) {
-    if (
-      !isRecord(rule) ||
-      !isString(rule['type']) ||
-      !rulesetRuleTypes.has(rule['type'])
-    ) {
-      errors.push(`${path}.rules[${String(index)}] has an unsupported type`);
-    }
+    validateRulesetRule(rule, `${path}.rules[${String(index)}]`, errors);
   }
 }
 
@@ -479,16 +619,33 @@ interface CliOptions {
   readonly apply: boolean;
 }
 
+async function readJsonDocuments(
+  directory: string,
+  displayDirectory: string,
+): Promise<readonly JsonDocument[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const jsonFiles = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  return Promise.all(
+    jsonFiles.map(async (entry) => ({
+      path: join(displayDirectory, entry.name),
+      value: await readJsonFile(join(directory, entry.name)),
+    })),
+  );
+}
+
 async function readConfigurationFiles(): Promise<
-  readonly [unknown, unknown, unknown, unknown]
+  readonly [unknown, readonly JsonDocument[], readonly JsonDocument[], unknown]
 > {
   try {
-    return await Promise.all([
+    const [repository, rulesets, environments, secrets] = await Promise.all([
       readJsonFile(join(githubRoot, 'repository-settings.json')),
-      readJsonFile(join(githubRoot, 'rulesets', 'main.json')),
-      readJsonFile(join(githubRoot, 'environments', 'production.json')),
+      readJsonDocuments(join(githubRoot, 'rulesets'), 'rulesets'),
+      readJsonDocuments(join(githubRoot, 'environments'), 'environments'),
       readJsonFile(join(githubRoot, 'secrets-manifest.json')),
-    ]);
+    ] as const);
+    return [repository, rulesets, environments, secrets];
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Unable to read GitHub infrastructure JSON: ${message}`, {
@@ -499,30 +656,44 @@ async function readConfigurationFiles(): Promise<
 
 function validateConfigurationValues(
   repositoryValue: unknown,
-  rulesetValue: unknown,
-  environmentValue: unknown,
+  rulesetDocuments: readonly JsonDocument[],
+  environmentDocuments: readonly JsonDocument[],
   secretValue: unknown,
 ): DesiredConfiguration {
   const errors: string[] = [];
   const repository = validateRepository(repositoryValue, errors);
-  const ruleset = validateRuleset(rulesetValue, 'rulesets/main.json', errors);
-  const environment = validateEnvironment(
-    environmentValue,
-    'environments/production.json',
-    errors,
-  );
+  const rulesets = rulesetDocuments.flatMap((document) => {
+    const ruleset = validateRuleset(document.value, document.path, errors);
+    return ruleset === undefined ? [] : [ruleset];
+  });
+  const environments = environmentDocuments.flatMap((document) => {
+    const environment = validateEnvironment(
+      document.value,
+      document.path,
+      errors,
+    );
+    return environment === undefined ? [] : [environment];
+  });
   const secrets = validateSecrets(secretValue, errors);
 
-  if (ruleset !== undefined) {
-    const expectedChecks = getRequiredStatusContexts(ruleset);
-    if (
-      !expectedChecks.includes('check') ||
-      !expectedChecks.includes('mutation')
-    ) {
-      errors.push(
-        'rulesets/main.json must require both check and mutation status checks',
-      );
+  const mainRuleset = rulesets.find((ruleset) => ruleset['name'] === 'main');
+  if (mainRuleset === undefined) {
+    errors.push('rulesets must contain a main.json ruleset named main');
+  } else {
+    for (const context of ['check', 'mutation', 'guard enforcement layer']) {
+      if (!getRequiredStatusContexts(mainRuleset).includes(context)) {
+        errors.push(
+          `rulesets/main.json must require the ${context} status check`,
+        );
+      }
     }
+  }
+  if (
+    !environments.some(
+      (environment) => environment['environment'] === 'production',
+    )
+  ) {
+    errors.push('environments must contain a production environment');
   }
 
   if (errors.length > 0) {
@@ -530,29 +701,24 @@ function validateConfigurationValues(
       `Invalid GitHub infrastructure configuration:\n- ${errors.join('\n- ')}`,
     );
   }
-  if (
-    repository === undefined ||
-    ruleset === undefined ||
-    environment === undefined ||
-    secrets === undefined
-  ) {
+  if (repository === undefined || secrets === undefined) {
     throw new Error('Invalid GitHub infrastructure configuration');
   }
   return {
     repository,
-    rulesets: [ruleset],
-    environments: [environment],
+    rulesets,
+    environments,
     secrets,
   };
 }
 
 async function loadConfiguration(): Promise<DesiredConfiguration> {
-  const [repositoryValue, rulesetValue, environmentValue, secretValue] =
+  const [repositoryValue, rulesetDocuments, environmentDocuments, secretValue] =
     await readConfigurationFiles();
   return validateConfigurationValues(
     repositoryValue,
-    rulesetValue,
-    environmentValue,
+    rulesetDocuments,
+    environmentDocuments,
     secretValue,
   );
 }
@@ -595,15 +761,20 @@ async function getRepositoryReference(): Promise<RepositoryReference> {
     );
   }
 
-  const gitConfig = await readFile(
-    join(repositoryRoot, '.git', 'config'),
-    'utf8',
-  );
-  const origin = /\[remote "origin"\][\s\S]*?\n\s*url\s*=\s*([^\n]+)/.exec(
-    gitConfig,
-  );
-  const reference =
-    origin === null ? undefined : parseRepositoryReference(origin[1] ?? '');
+  let origin: string;
+  try {
+    const result = await execFile(
+      'git',
+      ['config', '--get', 'remote.origin.url'],
+      { cwd: repositoryRoot, encoding: 'utf8' },
+    );
+    origin = result.stdout;
+  } catch (error: unknown) {
+    throw new Error('Unable to read the origin remote from git', {
+      cause: error,
+    });
+  }
+  const reference = parseRepositoryReference(origin);
   if (reference === undefined) {
     throw new Error(
       'Unable to determine the GitHub repository from GITHUB_REPOSITORY or origin',
@@ -662,6 +833,28 @@ function requireApiSuccess(response: ApiResponse, operation: string): unknown {
   return response.body;
 }
 
+async function requestPagedArray(
+  reference: RepositoryReference,
+  path: string,
+  operation: string,
+): Promise<readonly unknown[]> {
+  const values: unknown[] = [];
+  for (let page = 1; ; page += 1) {
+    const separator = path.includes('?') ? '&' : '?';
+    const response = requireApiSuccess(
+      await request(reference, `${path}${separator}page=${String(page)}`),
+      operation,
+    );
+    if (!isUnknownArray(response)) {
+      throw new Error(`${operation} returned an invalid response`);
+    }
+    values.push(...response);
+    if (response.length < apiPageSize) {
+      return values;
+    }
+  }
+}
+
 function selectFields(
   object: JsonObject,
   fields: readonly string[],
@@ -706,6 +899,37 @@ function reportDrift(
   }
 }
 
+function normalizeRulesetRule(rule: unknown): unknown {
+  if (!isRecord(rule) || !isRecord(rule['parameters'])) {
+    return rule;
+  }
+  if (rule['type'] === 'pull_request') {
+    return {
+      ...rule,
+      parameters: selectFields(rule['parameters'], pullRequestRuleFields),
+    };
+  }
+  if (rule['type'] !== 'required_status_checks') {
+    return rule;
+  }
+
+  const parameters = selectFields(
+    rule['parameters'],
+    requiredStatusChecksParameterFields,
+  );
+  if (isUnknownArray(parameters['required_status_checks'])) {
+    parameters['required_status_checks'] = parameters[
+      'required_status_checks'
+    ].map((statusCheck) => {
+      if (!isRecord(statusCheck)) {
+        return statusCheck;
+      }
+      return selectFields(statusCheck, ['context']);
+    });
+  }
+  return { ...rule, parameters };
+}
+
 function normalizeRulesetForComparison(value: JsonObject): JsonObject {
   const result: Record<string, unknown> = selectFields(value, [
     'name',
@@ -716,34 +940,7 @@ function normalizeRulesetForComparison(value: JsonObject): JsonObject {
     'rules',
   ]);
   if (isUnknownArray(result['rules'])) {
-    result['rules'] = result['rules'].map((rule) => {
-      if (
-        !isRecord(rule) ||
-        rule['type'] !== 'required_status_checks' ||
-        !isRecord(rule['parameters'])
-      ) {
-        return rule;
-      }
-      const parameters: Record<string, unknown> = { ...rule['parameters'] };
-      if (isUnknownArray(parameters['required_status_checks'])) {
-        parameters['required_status_checks'] = parameters[
-          'required_status_checks'
-        ].map((statusCheck) => {
-          if (
-            !isRecord(statusCheck) ||
-            statusCheck['integration_id'] === undefined
-          ) {
-            return statusCheck;
-          }
-          const normalizedStatusCheck: Record<string, unknown> = {
-            ...statusCheck,
-          };
-          delete normalizedStatusCheck['integration_id'];
-          return normalizedStatusCheck;
-        });
-      }
-      return { ...rule, parameters };
-    });
+    result['rules'] = result['rules'].map(normalizeRulesetRule);
   }
   return result;
 }
@@ -832,13 +1029,11 @@ async function checkRulesetDrift(
   configuration: DesiredConfiguration,
   drifts: string[],
 ): Promise<void> {
-  const response = requireApiSuccess(
-    await request(reference, '/rulesets?per_page=100'),
+  const response = await requestPagedArray(
+    reference,
+    `/rulesets?per_page=${String(apiPageSize)}`,
     'Listing repository rulesets',
   );
-  if (!isUnknownArray(response)) {
-    throw new Error('Listing repository rulesets returned an invalid response');
-  }
   const summaries: RulesetSummary[] = response.flatMap((summary) =>
     isRecord(summary) && isNumber(summary['id']) && isString(summary['name'])
       ? [{ id: summary['id'], name: summary['name'] }]
@@ -977,13 +1172,11 @@ async function applyConfiguration(
   );
   console.log('Applied repository settings.');
 
-  const rulesetSummariesResponse = requireApiSuccess(
-    await request(reference, '/rulesets?per_page=100'),
+  const rulesetSummariesResponse = await requestPagedArray(
+    reference,
+    `/rulesets?per_page=${String(apiPageSize)}`,
     'Listing repository rulesets before apply',
   );
-  if (!isUnknownArray(rulesetSummariesResponse)) {
-    throw new Error('Listing repository rulesets returned an invalid response');
-  }
   for (const desiredRuleset of configuration.rulesets) {
     const name = desiredRuleset['name'];
     if (!isString(name)) {
@@ -1076,10 +1269,11 @@ async function validateWorkflowContract(): Promise<void> {
   );
   if (
     /^\s+check:\s*$/m.exec(workflow) === null ||
-    /^\s+mutation:\s*$/m.exec(workflow) === null
+    /^\s+mutation:\s*$/m.exec(workflow) === null ||
+    /^\s+name:\s+guard enforcement layer\s*$/m.exec(workflow) === null
   ) {
     throw new Error(
-      'ci.yml must define both check and mutation jobs required by main.json',
+      'ci.yml must define check, mutation, and guard enforcement layer jobs required by main.json',
     );
   }
 }

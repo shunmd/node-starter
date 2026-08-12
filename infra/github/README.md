@@ -21,11 +21,11 @@ protected `workflow_dispatch` run on `main`:
 ALLOW_GITHUB_SETTINGS_APPLY=1 node scripts/github-settings.ts --apply
 ```
 
-The optional `GH_ADMIN_TOKEN` secret is the recommended token for the apply
-workflow. It must have the repository administration permission required by
-the GitHub API. The `production` reviewer list is empty until concrete GitHub
-user or team IDs are selected; no reviewer is inferred from a repository
-login.
+The required `GH_ADMIN_TOKEN` secret is used by drift checks and the apply
+workflow. It must have the repository administration and secret metadata read
+permissions required by the GitHub API. The `production` reviewer list is
+empty until concrete GitHub user or team IDs are selected; no reviewer is
+inferred from a repository login.
 
 The script manages only named rulesets and environments. It does not delete
 unmanaged GitHub settings, rulesets, environments, or secrets.
