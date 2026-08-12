@@ -32,6 +32,7 @@ configuration, not in an agent instruction or a duplicate policy paragraph.
 | ---------------------------- | -------------------------------- | -------------------------------------- |
 | Current repository shape     | `docs/architecture.md`           | On demand from `docs/index.md`         |
 | Recurring procedures         | `docs/development-guide.md`      | On demand from `docs/index.md`         |
+| Existing project adoption    | `docs/adoption-guide.md`         | On demand from `docs/index.md`         |
 | Quality policy               | `docs/code-quality-gate.md`      | On demand when evaluating the gate     |
 | Historical rationale         | `docs/decisions/*.md`            | Only through `docs/decisions/index.md` |
 | Temporary discoveries        | `docs/ai/learnings.md`           | Prune, promote, or delete              |

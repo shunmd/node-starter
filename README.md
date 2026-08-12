@@ -170,10 +170,13 @@ the reason for the friction, is in
 ```sh
 gh repo create my-project --template shunmd/node-starter --private --clone
 cd my-project
-mise trust && mise install && pnpm install && pnpm verify
+mise trust && mise install && pnpm install && pnpm verify && pnpm test:mutation
 ```
 
 Or use the "Use this template" button on GitHub.
+
+For an existing project, follow the
+[`existing-project adoption guide`](docs/adoption-guide.md).
 
 To compare an existing project against the template later:
 
@@ -246,6 +249,7 @@ Work through this before your first real commit.
     ├── index.md            # Documentation router.
     ├── architecture.md    # The shape of the system and context boundaries.
     ├── development-guide.md # Recurring human procedures.
+    ├── adoption-guide.md  # Existing-project migration procedure.
     ├── ai/
     │   ├── learnings.md            # Volatile discoveries. Agent-writable.
     │   └── improvement-backlog.md  # Proposed rule changes. Agent-writable.

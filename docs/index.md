@@ -7,6 +7,7 @@ router, not a master document.
 | ----------------------------------------------- | -------------------------------------------------------- |
 | Current repository shape and context boundaries | [`architecture.md`](architecture.md)                     |
 | Recurring development procedures                | [`development-guide.md`](development-guide.md)           |
+| Adopting the template into an existing project  | [`adoption-guide.md`](adoption-guide.md)                 |
 | Normative quality policy                        | [`code-quality-gate.md`](code-quality-gate.md)           |
 | Architectural rationale and decision status     | [`decisions/index.md`](decisions/index.md)               |
 | Temporary discoveries to prune or promote       | [`ai/learnings.md`](ai/learnings.md)                     |

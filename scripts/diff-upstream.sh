@@ -25,11 +25,15 @@ TRACKED_PATHS=(
   eslint.config.js
   prettier.config.js
   vitest.config.ts
+  stryker.config.json
+  knip.jsonc
+  .dependency-cruiser.json
   .editorconfig
   .gitattributes
   .prettierignore
   .github/workflows/ci.yml
   scripts/check-toolchain-age.ts
+  scripts/secret-scan.sh
   AGENTS.md
 )
 

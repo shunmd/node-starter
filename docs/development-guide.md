@@ -231,6 +231,10 @@ only if a broken build should block every commit — usually it should.
 
 ## Comparing against the template
 
+For the initial migration into an existing repository, use the
+[`docs/adoption-guide.md`](adoption-guide.md). This section covers the later
+comparison loop after adoption.
+
 ```sh
 scripts/diff-upstream.sh
 ```
