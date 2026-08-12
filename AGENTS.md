@@ -31,7 +31,7 @@ task-specific documentation.
 - Where tooling does not decide, prefer `interface` over `type`, give errors
   input context, name tests by behaviour, explain why in comments, and avoid
   barrel files.
-- The enforcement layer and its human-approval boundary are documented in
+- The enforcement layer and its protected-file review notice are documented in
   `docs/architecture.md` and `docs/development-guide.md`.
 
 # Context

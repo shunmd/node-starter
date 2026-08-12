@@ -100,8 +100,8 @@ steps are recorded in [ADR 5](decisions/0005-bounded-ai-assisted-development.md)
 
 ## Protected enforcement layer
 
-The following paths define how quality is enforced and require explicit human
-approval for pull requests that change them:
+The following paths define how quality is enforced and deserve focused review
+when a pull request changes them:
 
 ```text
 eslint.config.js
@@ -123,12 +123,15 @@ scripts/github-settings.ts
 infra/github/
 ```
 
-The `guard-enforcement-layer` CI job checks these paths. Approval is expressed
-by the `toolchain` label or `TOOLCHAIN-CHANGE-APPROVED` in the pull request
-title. Proposed improvements belong in
+The `protected-file-notice` CI job reports these paths in an informational pull
+request comment. It does not block merging or require a title marker or label.
+The `check` and `mutation` jobs remain the required quality gates. Proposed
+changes to the enforcement layer belong in
 [`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md) until a human
-applies them. This boundary prevents ordinary changes from silently weakening
-their own checks.
+reviews and applies them. This notice makes changes visible without turning
+metadata-only updates into blocked builds. The comment is best effort: a
+read-only token on a fork pull request can prevent it from being posted, and
+that permission failure remains a warning.
 
 GitHub repository settings have a separate declarative source of truth under
 `infra/github/`. Validate it with `node scripts/github-settings.ts --check`;
@@ -197,10 +200,9 @@ To bump pnpm:
    (`devEngines.packageManager.version`) to the same value.
 3. `mise install && mise lock` to refresh `mise.lock`.
 4. `pnpm check` — `check:toolchain` verifies the age and that the pins agree.
-5. Open the pull request with `TOOLCHAIN-CHANGE-APPROVED` in the title, or the
-   `toolchain` label. Without it, `guard-enforcement-layer` fails the build.
-   Adding either afterwards is fine — the workflow listens for `edited` and
-   `labeled` as well, so the check re-runs without needing a new commit.
+5. Open the pull request and review the protected-file notice if one appears.
+   The notice is informational; the required `check` and `mutation` jobs still
+   need to pass.
 
 Bumping Node is the same, using `nodejs.org/dist/index.json` for the release
 date, and updating `engines.node` and `devEngines.runtime.version` as well.

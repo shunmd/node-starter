@@ -1,9 +1,9 @@
 # Improvement backlog
 
 Proposed changes to the enforcement layer — lint rules, tsconfig flags, CI
-steps, scripts. Protected paths are not changed as a side effect of ordinary
-work; proposals land here and a human applies them through the repository's
-approval process.
+steps, scripts. Protected paths receive a review notice when changed; proposals
+land here and a human reviews and applies them through the repository's normal
+review process.
 
 A proposal is only useful if it is concrete. Include:
 
