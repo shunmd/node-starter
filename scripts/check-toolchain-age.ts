@@ -130,9 +130,10 @@ async function nodeReleaseDate(version: string): Promise<Date> {
       entry['version'] === `v${version}` &&
       typeof entry['date'] === 'string'
     ) {
-      // The dist index carries a date, not a timestamp; treat it as midnight
-      // UTC, which is the conservative (earliest) reading.
-      return new Date(`${entry['date']}T00:00:00Z`);
+      // The dist index carries a date, not a timestamp. Use the end of the
+      // recorded day so the missing publication time cannot shorten the
+      // cooldown window.
+      return new Date(`${entry['date']}T23:59:59.999Z`);
     }
   }
   throw new Error(`nodejs.org does not list a release for Node ${version}.`);

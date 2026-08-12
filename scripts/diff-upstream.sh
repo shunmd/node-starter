@@ -72,3 +72,5 @@ else
   echo "Review the diffs above. Anything you adopt should be committed like any"
   echo "other change; anything you reject is worth a note in docs/decisions/."
 fi
+
+exit "${status}"

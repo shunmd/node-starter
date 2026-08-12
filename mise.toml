@@ -30,3 +30,6 @@ _.path = ["{{config_root}}/node_modules/.bin"]
 # Record resolved versions + checksums in mise.lock so tool downloads are
 # verified, not just version-matched. mise.lock is committed.
 lockfile = true
+# Never resolve a missing platform entry during install; use only the
+# checksummed URLs already committed in mise.lock.
+locked = true

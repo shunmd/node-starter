@@ -39,8 +39,8 @@ will not be used.
 ```sh
 mise trust        # approve this repo's mise.toml
 mise install      # install Node + pnpm at the pinned versions
-pnpm install      # install dependencies from pnpm-lock.yaml
-pnpm verify       # verify everything passes before you change anything
+mise exec -- pnpm install   # install dependencies from pnpm-lock.yaml
+mise exec -- pnpm verify    # verify everything passes before you change anything
 ```
 
 If `pnpm verify` is green on a fresh clone, your environment is correct.
@@ -170,7 +170,7 @@ the reason for the friction, is in
 ```sh
 gh repo create my-project --template shunmd/node-starter --private --clone
 cd my-project
-mise trust && mise install && pnpm install && pnpm verify && pnpm test:mutation
+mise trust && mise install && mise exec -- pnpm install && mise exec -- pnpm verify && mise exec -- pnpm test:mutation
 ```
 
 Or use the "Use this template" button on GitHub.
