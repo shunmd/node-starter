@@ -30,9 +30,12 @@ historical rationale.
 | GitHub settings drift detection      | `.github/workflows/github-settings.yml`    |
 
 The standard checks share `pnpm verify`; Mutation Testing runs through the
-required `pnpm test:mutation` job. `pnpm check` is the compatibility alias for
-`pnpm verify`. A rule that a tool can enforce belongs in that tool's
-configuration, not in an agent instruction or a duplicate policy paragraph.
+required `pnpm test:mutation` job. The `protected-file-notice` job reports
+changes to files that define quality enforcement, the toolchain or
+supply-chain settings, but does not block a pull request. `pnpm check` is the
+compatibility alias for `pnpm verify`. A rule that a tool can enforce belongs
+in that tool's configuration, not in an agent instruction or a duplicate
+policy paragraph.
 
 ## The enforcement scripts
 

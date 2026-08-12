@@ -249,7 +249,7 @@ Work through this before your first real commit.
 ├── .gitattributes         # Line endings; marks lockfiles as generated.
 ├── .prettierignore        # Generated output and lockfiles.
 ├── .github/workflows/
-│   ├── ci.yml             # Runs the standard and mutation gates; guards enforcement.
+│   ├── ci.yml             # Runs quality gates and reports protected-file changes.
 │   └── github-settings.yml # Validates and detects drift in GitHub settings.
 ├── infra/github/
 │   ├── repository-settings.json # Repository settings desired state.

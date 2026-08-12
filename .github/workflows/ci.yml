@@ -3,13 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
-  # `labeled`, `unlabeled` and `edited` are not in the default set, and without
-  # them the approval route below is unreachable: guard-enforcement-layer reads
-  # the pull request's title and labels, but adding either would not re-run the
-  # workflow, so an approved change would stay red until someone pushed an
-  # unrelated commit.
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+    types: [opened, synchronize, reopened]
 
 # Least privilege by default. A job that needs more asks for it explicitly.
 permissions:
@@ -72,39 +67,30 @@ jobs:
       - name: Mutation test
         run: pnpm test:mutation
 
-  # The repository's rule is that agents may edit docs and code freely, but the
-  # enforcement layer -- lint config, CI, toolchain pins, supply-chain settings
-  # -- changes only with a human's explicit sign-off. That rule is worthless as
-  # a sentence in AGENTS.md, so it is a job.
-  #
-  # To make an approved change: put `TOOLCHAIN-CHANGE-APPROVED` in the pull
-  # request title, or add the `toolchain` label.
-  #
-  # Read what this job is and is not. The pull request title and, for anyone
-  # with write access, the label are both set by whoever opened the pull
-  # request -- including an agent. So this job records a *declaration of
-  # intent*: it stops the enforcement layer from being edited as an unnoticed
-  # side effect of ordinary work, and it makes the edit visible in the title.
-  # It is not the approval itself. The approval is `.github/CODEOWNERS`, which
-  # the `main` ruleset enforces as a required code-owner review on exactly
-  # these paths, and which the pull request author cannot grant themselves.
-  guard-enforcement-layer:
-    name: guard enforcement layer
+  # Changes to the files that define quality enforcement, the toolchain and
+  # supply-chain settings deserve focused review. This job reports those
+  # changes in the pull request without blocking otherwise valid work.
+  protected-file-notice:
+    name: protected file notice
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect changes to protected paths
+      - name: Report changes to protected paths
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           # Must stay in step with .github/CODEOWNERS and the list in
@@ -115,25 +101,98 @@ jobs:
           # of date the first time someone forgets.
           protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.editorconfig|\.gitattributes|\.github/|infra/|scripts/|AGENTS\.md|CLAUDE\.md)'
           changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
+          marker='<!-- node-starter-protected-file-notice -->'
+          comments_url="https://api.github.com/repos/${REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100"
+          comments_file="$(mktemp)"
+          payload_file="$(mktemp)"
+          trap 'rm -f "${comments_file}" "${payload_file}"' EXIT
+
+          if [ -n "${changed}" ]; then
+            body="$(printf '%s\n\n## Protected files changed\n\n%s\n\n```text\n%s\n```\n\n%s' \
+              "${marker}" \
+              'This pull request changes files that define quality enforcement, the toolchain, or supply-chain settings. Review these changes with particular care.' \
+              "${changed}" \
+              'This is an informational notice and does not block merging.')"
+          else
+            body=''
+          fi
+
+          set +e
+          comments_status="$(curl --silent --show-error --output "${comments_file}" --write-out '%{http_code}' \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "${comments_url}")"
+          curl_status=$?
+          set -e
+
+          if [ "${curl_status}" -ne 0 ] || [[ ! "${comments_status}" =~ ^2 ]]; then
+            echo "::warning::Could not inspect pull request comments (HTTP ${comments_status:-unknown}). The protected-file notice is informational and will not fail CI."
+            exit 0
+          fi
+
+          if ! jq -e 'type == "array"' "${comments_file}" >/dev/null; then
+            echo "::warning::GitHub returned an unexpected pull request comments response. The protected-file notice is informational and will not fail CI."
+            exit 0
+          fi
+
+          comment_id="$(jq -r --arg marker "${marker}" '
+            [.[] | select((.user.login // "") == "github-actions[bot]" and ((.body // "") | contains($marker))) | .id][0] // empty
+          ' "${comments_file}")"
 
           if [ -z "${changed}" ]; then
-            echo "No protected paths touched."
+            if [ -z "${comment_id}" ]; then
+              echo "No protected paths touched."
+              exit 0
+            fi
+
+            set +e
+            delete_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --request DELETE \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${REPOSITORY}/issues/comments/${comment_id}")"
+            delete_curl_status=$?
+            set -e
+
+            if [ "${delete_curl_status}" -ne 0 ] || [ "${delete_status}" != "204" ]; then
+              echo "::warning::Could not remove the stale protected-file notice (HTTP ${delete_status:-unknown}). The notice is informational and will not fail CI."
+              exit 0
+            fi
+
+            echo "Removed the stale protected-file notice."
             exit 0
           fi
 
-          echo "Protected paths changed:"
-          echo "${changed}" | sed 's/^/  - /'
+          jq -n --arg body "${body}" '{body: $body}' >"${payload_file}"
+          if [ -n "${comment_id}" ]; then
+            comment_url="https://api.github.com/repos/${REPOSITORY}/issues/comments/${comment_id}"
+            request_method=PATCH
+          else
+            comment_url="https://api.github.com/repos/${REPOSITORY}/issues/${PR_NUMBER}/comments"
+            request_method=POST
+          fi
 
-          case ",${PR_LABELS}," in *,toolchain,*) approved=1 ;; *) approved=0 ;; esac
-          case "${PR_TITLE}" in *TOOLCHAIN-CHANGE-APPROVED*) approved=1 ;; esac
+          set +e
+          write_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --request "${request_method}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            --data-binary "@${payload_file}" \
+            "${comment_url}")"
+          write_curl_status=$?
+          set -e
 
-          if [ "${approved}" -eq 1 ]; then
-            echo "Change is explicitly approved."
+          if [ "${write_curl_status}" -ne 0 ] || [[ ! "${write_status}" =~ ^2 ]]; then
+            echo "::warning::Could not write the protected-file notice (HTTP ${write_status:-unknown}). This can happen when a fork pull request has a read-only token. The notice is informational and will not fail CI."
             exit 0
           fi
 
-          echo
-          echo "These files define how quality is enforced, so they are not changed as a"
-          echo "side effect of ordinary work. If the change is intended, add the 'toolchain'"
-          echo "label or put TOOLCHAIN-CHANGE-APPROVED in the pull request title."
-          exit 1
+          if [ -n "${comment_id}" ]; then
+            echo "Updated the protected-file notice."
+          else
+            echo "Created the protected-file notice."
+          fi

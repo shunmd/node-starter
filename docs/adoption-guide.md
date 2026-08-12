@@ -63,8 +63,8 @@ Use the following order. Keep one clear source of truth for every setting.
 
 Do not replace an existing workflow wholesale. Merge the `check` and required
 `mutation` jobs into the current workflow, preserving deployment and release
-jobs. The enforcement-layer guard must also cover every setting that can weaken
-the checks.
+jobs. The protected-file notice should also cover every setting that can weaken
+the checks, while remaining informational rather than blocking.
 
 ## 4. Resolve project-specific configuration
 
@@ -114,8 +114,7 @@ pass.
 Before merging the migration:
 
 - require the `check` and `mutation` jobs in branch protection for `main`;
-- keep enforcement-layer changes behind the `toolchain` label or
-  `TOOLCHAIN-CHANGE-APPROVED` pull-request title marker;
+- retain a protected-file notice for changes to the enforcement layer;
 - retain existing deployment approvals and environment protection rules;
 - document intentional deviations in `docs/decisions/`, including the reason,
   scope, and follow-up owner.

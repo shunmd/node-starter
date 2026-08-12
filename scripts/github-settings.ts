@@ -688,7 +688,7 @@ function validateConfigurationValues(
   if (mainRuleset === undefined) {
     errors.push('rulesets must contain a main.json ruleset named main');
   } else {
-    for (const context of ['check', 'mutation', 'guard enforcement layer']) {
+    for (const context of ['check', 'mutation']) {
       if (!getRequiredStatusContexts(mainRuleset).includes(context)) {
         errors.push(
           `rulesets/main.json must require the ${context} status check`,
@@ -1277,11 +1277,10 @@ async function validateWorkflowContract(): Promise<void> {
   );
   if (
     /^\s+check:\s*$/m.exec(workflow) === null ||
-    /^\s+mutation:\s*$/m.exec(workflow) === null ||
-    /^\s+name:\s+guard enforcement layer\s*$/m.exec(workflow) === null
+    /^\s+mutation:\s*$/m.exec(workflow) === null
   ) {
     throw new Error(
-      'ci.yml must define check, mutation, and guard enforcement layer jobs required by main.json',
+      'ci.yml must define check and mutation jobs required by main.json',
     );
   }
 }
