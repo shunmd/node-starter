@@ -13,7 +13,7 @@ pnpm test:mutation   # required mutation gate; same command as the CI mutation j
 ```
 
 `pnpm verify` runs `check:toolchain`, `check:workflows`, `check:gate-contract`,
-`format:check`, `lint`, `typecheck`, `deadcode`, `architecture`, `duplication`,
+`check:manifest`, `check:scope`, `format:check`, `lint`, `typecheck`, `deadcode`, `architecture`, `duplication`,
 `secret:scan`, `check:deps` and `test:coverage` in that order, stopping at the
 first failure. `pnpm check` is a compatibility alias. Individual steps exist as
 separate scripts when you want a faster loop.
@@ -85,6 +85,22 @@ The fast gate includes these checks beyond formatting, linting and types:
   between the ruleset's required status checks and the CI job names. It checks
   configuration shape, not runtime behaviour -- see
   `scripts/lib/gate-contract.ts` for what that does and does not prove.
+- `pnpm check:manifest` compares `infra/template-manifest.json` with the files
+  the repository tracks, in both directions: a file below one of the declared
+  roots that no group lists, and a listed path that matches nothing. The
+  manifest is what `scripts/diff-upstream.sh` and the adoption procedure read,
+  so a stale entry means the next repository to adopt the template silently
+  goes without that file. Adding a script under `scripts/`, a settings file
+  under `infra/github/`, or a workflow means adding it here too.
+- `pnpm check:scope` resolves every scope declared for the quality tools --
+  Stryker's `mutate`, Vitest's `include` and `coverage.include`, jscpd's
+  `path`, and the directories `pnpm architecture` scans -- against the
+  repository's actual files, and fails if any of them matches nothing. This is
+  what an adoption most often gets wrong: a scope merged from another
+  repository's layout (`src/application/**/*.ts` in a project whose source is
+  `src/**/*.ts`) either stops Stryker outright or, for jscpd and coverage,
+  silently reports success over an empty set. See
+  `scripts/lib/scope-contract.ts`.
 - `pnpm check:deps` fails on any `pnpm audit` advisory and on any licence
   outside the allow list in `infra/policy/dependency-policy.json`. See
   "Accepting a dependency exception" below.
@@ -385,15 +401,22 @@ only if a broken build should block every commit — usually it should.
 
 For the initial migration into an existing repository, use the
 [`docs/adoption-guide.md`](adoption-guide.md). This section covers the later
-comparison loop after adoption.
+comparison loop after adoption; the full periodic-upgrade procedure is
+`docs/adoption-guide.md` §9, or `.claude/skills/upgrade-node-starter/` for an
+agent to run end to end.
 
 ```sh
 scripts/diff-upstream.sh
 ```
 
 Shows how this project's shared config differs from the template it came from.
-Nothing syncs automatically; adopt what you want, and record what you
-deliberately rejected in `docs/decisions/`.
+The file list comes from `infra/template-manifest.json` unioned with the
+upstream template's own copy, not from a list kept by hand — the union matters
+because a repository's manifest can only list files that existed at its own
+adoption; without it, a file the template added afterwards would be invisible
+to a diff that trusted only the local list. Nothing syncs automatically; adopt
+what you want, and record what you deliberately rejected in
+`docs/decisions/`.
 
 ## TypeScript version
 

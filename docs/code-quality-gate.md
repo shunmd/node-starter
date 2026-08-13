@@ -67,6 +67,8 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Supply Chain    | Dependency Update Proposal    | weekly             | Active: Dependabot (`.github/dependabot.yml`)                                  |
 | CI Policy       | Workflow Policy Violation     | `= 0`              | Active: `pnpm check:workflows`                                                 |
 | Gate Integrity  | Gate Contract Violation       | `= 0`              | Active: `pnpm check:gate-contract` (`scripts/lib/gate-contract.ts`)            |
+| Gate Integrity  | Unlisted Template-Owned File  | `= 0`              | Active: `pnpm check:manifest` (`scripts/lib/template-manifest.ts`)             |
+| Gate Integrity  | Scope Matching No File        | `= 0`              | Active: `pnpm check:scope` (`scripts/lib/scope-contract.ts`)                   |
 | Security        | Secret Finding (working tree) | `= 0`              | Active: Gitleaks `dir`                                                         |
 | Security        | Secret Finding (history)      | `= 0`              | Active: Gitleaks `git`                                                         |
 | Test            | Failed Test                   | `= 0`              | Active: Vitest                                                                 |
@@ -377,6 +379,23 @@ severity、`ci.yml`の必須Job(`check`、`mutation`)がif条件・
 `infra/github/rulesets/main.json`のrequired status checkとci.ymlのJob名が
 一致することである。判定ロジックは`scripts/lib/gate-contract.ts`にあり、
 他のEnforcement Layer同様、Coverage・Mutation Testingの対象である。
+
+Gateを構成するファイルが「存在するか」は別の問題であり、
+`pnpm check:manifest`が担当する。`infra/template-manifest.json`は
+Templateが所有するファイルの唯一の一覧であり、`scripts/diff-upstream.sh`と
+移行手順はこれを読む。宣言されたroot配下にありながら一覧にないファイル、
+および一覧にありながら存在しないパスは、いずれもGate失敗として扱う。
+一覧が古びると、次にTemplateを導入するリポジトリはそのファイルを
+持たないままGateが緑になる。判定ロジックは
+`scripts/lib/template-manifest.ts`にある。
+
+同様に、`pnpm check:scope`はMutation Testingの`mutate`、Coverageの
+`include`、jscpdの`path`、`architecture` scriptが走査するディレクトリを
+実際のファイルに対して解決し、1件も一致しないScopeをGate失敗とする。
+移行元のディレクトリ構成のまま残った`src/application/**/*.ts`のような
+指定は、Strykerであれば実行が止まるため気付けるが、jscpdやCoverageの
+`include`は何も測らずに成功を報告する。判定ロジックは
+`scripts/lib/scope-contract.ts`にある。
 
 この検査は各ファイルの**宣言された形**を読むだけで、実行時の値は見ない。
 したがって「Gateが正しく動くこと」自体の証明ではなく、他のCheckがそれを
