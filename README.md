@@ -213,8 +213,8 @@ Work through this before your first real commit.
       you forked it somewhere else.
 - [ ] `AGENTS.md` — keep only durable repository-wide guidance that tools
       cannot enforce, and use `docs/index.md` for detail.
-- [ ] `docs/decisions/` — ADRs 1–6 describe the template's own decisions. Keep
-      relevant history and add yours from number 7.
+- [ ] `docs/decisions/` — ADRs 1–8 describe the template's own decisions. Keep
+      relevant history and add yours from number 9.
 - [ ] `docs/ai/learnings.md` — clear the seeded entry once it stops being useful.
 - [ ] `mise.lock` — verify the pinned lockfile after changing the toolchain.
 - [ ] `LICENSE` — add one if this is going to be shared.

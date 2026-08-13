@@ -136,47 +136,29 @@ the same glob lists the Gate Contract Test already parses, twice, once per
 ref -- worth sharing code with `scripts/lib/gate-contract.ts` rather than
 duplicating the extraction logic.
 
-### Remove the ruleset's admin bypass and add a required `gate-integrity` job
+### Add a required `gate-integrity` status check for the gate contract
 
-**What:** two related, security-relevant changes that should land together and
-be reviewed as GitHub-settings changes, not as ordinary code: (1) remove the
-`bypass_actors` entry from `infra/github/rulesets/main.json`, so no
-`RepositoryRole` can merge into `main` around the required checks even inside
-a pull request; (2) add a `gate-integrity` job to `.github/workflows/ci.yml`
-running `pnpm check:gate-contract` (and, once it exists, the ratchet check
-above), and require it in `infra/github/rulesets/main.json` alongside `check`
-and `mutation`.
+**What:** add a `gate-integrity` job to `.github/workflows/ci.yml` running
+`pnpm check:gate-contract` as its own step (and, once it exists, the ratchet
+check above), and require it in `infra/github/rulesets/main.json` alongside
+`check`, `mutation` and `github-settings`.
 
-**Why:** today `pnpm check:gate-contract` only runs as one step inside the
-`check` job, and the ruleset still grants a bypass actor the ability to merge
-without any required check passing at all. Both gaps mean the enforcement
-described in this backlog's other entries, and in
-`scripts/lib/gate-contract.ts` itself, can be routed around rather than
-defeated on its own terms -- which is a materially different risk from a check
-that simply has not been written yet.
+**Why:** this entry originally paired two changes: removing `main`'s
+`bypass_actors` entry, and giving `check:gate-contract` its own required
+status. The bypass removal is done --
+[ADR 8](../decisions/0008-no-required-human-approval-solo-repo.md) records it
+as a deliberate solo-repository policy, and
+`scripts/lib/github-settings-approval-policy.ts` now fails
+`github-settings --check` if `bypass_actors`, `require_code_owner_review`,
+`require_last_push_approval`, or a missing `check`/`mutation`/`github-settings`
+status check reappears in `rulesets/main.json`. What remains is that
+`pnpm check:gate-contract` still only runs as one step inside the `check`
+job's chain, so a gate-contract violation is reported as an undifferentiated
+`check` failure rather than its own named status.
 
-**Cost:** removing the bypass actor removes the repository owner's own escape
-hatch for a genuinely broken gate (a bad required check that cannot be fixed
-through the normal PR path); it should not be done without a second way to
-recover, such as `enforcement: evaluate` as a documented manual fallback. This
-is exactly the kind of decision `docs/architecture.md` reserves for a human:
-"Proposed enforcement changes ... Human applies accepted proposals."
-
-### Decompose `scripts/github-settings.ts`
-
-**What:** move its validation, normalisation and drift-comparison functions into
-`scripts/lib/github-settings-policy.ts`, leaving the API client, argument
-parsing and orchestration in the entry point. Then delete the two exemptions
-for it in `eslint.config.js`.
-
-**Why:** it is 1300 lines, it is the only file exempt from the entry-point size
-limits, and it is outside the coverage scope -- so the script that reconciles
-this repository's own branch protection has no tests. Its validation half is
-already pure and would be straightforward to cover.
-
-**Cost:** a large mechanical diff in a protected path, which is exactly the kind
-of change that is hard to review. Worth doing on its own, not alongside
-anything else.
+**Cost:** a fourth required CI job adds Actions runner startup time to every
+pull request; `check:gate-contract` itself runs in seconds, so the job itself
+is not the expensive part.
 
 ### Measure duplication on changed lines
 

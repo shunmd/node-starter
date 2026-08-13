@@ -2,13 +2,7 @@
   "name": "main",
   "target": "branch",
   "enforcement": "active",
-  "bypass_actors": [
-    {
-      "actor_type": "RepositoryRole",
-      "actor_id": 5,
-      "bypass_mode": "pull_request"
-    }
-  ],
+  "bypass_actors": [],
   "conditions": {
     "ref_name": {
       "include": ["refs/heads/main"],
@@ -45,6 +39,9 @@
           },
           {
             "context": "mutation"
+          },
+          {
+            "context": "github-settings"
           }
         ],
         "strict_required_status_checks_policy": true

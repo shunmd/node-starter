@@ -27,6 +27,7 @@ historical rationale.
 | Protected-path ownership metadata    | `.github/CODEOWNERS`                       |
 | CI execution                         | `.github/workflows/ci.yml`                 |
 | GitHub repository desired state      | `infra/github/*.json`                      |
+| GitHub settings policy decisions     | `scripts/lib/github-settings-*.ts`         |
 | GitHub settings API reconciliation   | `scripts/github-settings.ts`               |
 | GitHub settings drift detection      | `.github/workflows/github-settings.yml`    |
 
@@ -51,17 +52,24 @@ whether everything else passes, and an untested gate is not a gate.
 The dependency runs one way -- `.dependency-cruiser.json` forbids a library
 module from importing an entry point, since importing one would execute its
 top-level `main()`. ESLint caps the entry points at 120 lines so logic cannot
-migrate there to escape the coverage scope. `scripts/github-settings.ts`
-predates the split and is exempt from both; the proposal to decompose it is in
-`docs/ai/improvement-backlog.md`.
+migrate there to escape the coverage scope. `scripts/github-settings.ts` is a
+thin entry point over `scripts/github-settings/` (file and network I/O) and
+`scripts/lib/github-settings-*.ts` (validation, normalization, drift and
+CI-contract decisions -- covered and mutation-tested like every other
+`scripts/lib/` module).
 
 ## Merge protection without mandatory approval
 
 The CI `protected-file-notice` job records which enforcement-layer paths changed
 in an informational pull request comment; it does not inspect or require a
-title marker, label, or approval. The `main` ruleset requires the `check` and
-`mutation` status checks and resolved review threads, but deliberately does not
-require an approving review, code-owner review, or approval after the last push.
+title marker, label, or approval. The `main` ruleset requires the `check`,
+`mutation` and `github-settings` status checks and resolved review threads,
+but deliberately does not require an approving review, code-owner review, or
+approval after the last push, and grants no bypass actor. This is a
+solo-repository policy recorded in
+[ADR 0008](decisions/0008-no-required-human-approval-solo-repo.md), not a
+default to relax without thought; `scripts/lib/github-settings-approval-policy.ts`
+enforces it against `infra/github/rulesets/main.json` itself.
 
 `.github/CODEOWNERS` remains ownership metadata for adopters who choose to
 enable code-owner review in their generated project.

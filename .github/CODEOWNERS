@@ -1,7 +1,11 @@
 # Protected-path ownership metadata for adopters who choose to enable review.
 #
-# The template's main ruleset does not require approving reviews. Replace
-# @shunmd before enabling code-owner review in a generated project.
+# The template's main ruleset does not require approving reviews. That is a
+# deliberate solo-repository policy, not an oversight -- see
+# docs/decisions/0008-no-required-human-approval-solo-repo.md for the
+# reasoning and the conditions under which a generated project should turn
+# review back on. Replace @shunmd before enabling code-owner review in a
+# generated project.
 #
 # A code owner must have write access to the repository the file lives in.
 # Replace every @shunmd below with your own account or team before turning that
