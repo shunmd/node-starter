@@ -69,6 +69,31 @@ jobs:
       - name: Mutation test
         run: pnpm test:mutation
 
+  # infra/github/rulesets/main.json requires this check by name, so a job
+  # that stopped validating anything (renamed, wrong command, deleted) would
+  # otherwise still show green. scripts/lib/github-settings-ci-contract.ts
+  # checks the reverse direction: that this job exists and runs this exact
+  # command.
+  github-settings:
+    name: github-settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+        with:
+          version: 2026.8.1
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate GitHub settings
+        run: node scripts/github-settings.ts --check
+
   # Changes to the files that define quality enforcement, the toolchain and
   # supply-chain settings deserve focused review. This job reports those
   # changes in the pull request without blocking otherwise valid work.

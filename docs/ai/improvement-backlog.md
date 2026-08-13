@@ -82,22 +82,6 @@ policy question in this repository that a `= 0` gate cannot express.
 (`pnpm check:workflows` enforces this), and the sha has to be read from the
 upstream repository at the version being adopted.
 
-### Decompose `scripts/github-settings.ts`
-
-**What:** move its validation, normalisation and drift-comparison functions into
-`scripts/lib/github-settings-policy.ts`, leaving the API client, argument
-parsing and orchestration in the entry point. Then delete the two exemptions
-for it in `eslint.config.js`.
-
-**Why:** it is 1300 lines, it is the only file exempt from the entry-point size
-limits, and it is outside the coverage scope -- so the script that reconciles
-this repository's own branch protection has no tests. Its validation half is
-already pure and would be straightforward to cover.
-
-**Cost:** a large mechanical diff in a protected path, which is exactly the kind
-of change that is hard to review. Worth doing on its own, not alongside
-anything else.
-
 ### Measure duplication on changed lines
 
 **What:** replace or supplement jscpd's whole-tree percentage with a

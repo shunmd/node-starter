@@ -148,7 +148,8 @@ CLAUDE.md
 
 The `protected-file-notice` CI job reports these paths in an informational pull
 request comment. It does not block merging or require a title marker or label.
-The `check` and `mutation` jobs remain the required quality gates. Proposed
+The `check`, `mutation` and `github-settings` jobs remain the required quality
+gates. Proposed
 changes to the enforcement layer belong in
 [`docs/ai/improvement-backlog.md`](ai/improvement-backlog.md) until a human
 reviews and applies them. This notice makes changes visible without turning
@@ -160,8 +161,14 @@ that permission failure remains a warning.
 judged by the checks, which is the point of the whole arrangement.
 
 GitHub repository settings have a separate declarative source of truth under
-`infra/github/`. Validate it with `node scripts/github-settings.ts --check`;
-compare it with the live repository using `node scripts/github-settings.ts
+`infra/github/`. The `main` ruleset requires no approving review and grants
+no bypass actor -- a deliberate solo-repository policy explained in
+[ADR 0008](decisions/0008-no-required-human-approval-solo-repo.md), including
+when a generated project should turn that back on. `github-settings` is
+itself a required CI status check (`.github/workflows/ci.yml`), so a
+regression in that policy fails before it reaches GitHub. Validate the
+declared state with `node scripts/github-settings.ts --check`; compare it
+with the live repository using `node scripts/github-settings.ts
 --check --remote`. Applying the settings
 is a protected `workflow_dispatch` operation on `main` or an explicitly opted-in
 local command. For local application, use the authenticated GitHub CLI token:

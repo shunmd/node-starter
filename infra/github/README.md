@@ -34,7 +34,11 @@ empty until concrete GitHub user or team IDs are selected; no reviewer is
 inferred from a repository login.
 
 The template's `main` ruleset does not require an approving review, code-owner
-review, or approval after the last push. It still requires the `check` and
-`mutation` status checks and review-thread resolution. The script manages only
-named rulesets and environments. It does not delete unmanaged GitHub settings,
-rulesets, environments, or secrets.
+review, or approval after the last push, and grants no bypass actor. It still
+requires the `check`, `mutation` and `github-settings` status checks and
+review-thread resolution. This is a solo-repository policy, not a default to
+be relaxed later without thought; see
+[ADR 0008](../../docs/decisions/0008-no-required-human-approval-solo-repo.md)
+for the reasoning and the conditions under which it should change. The script
+manages only named rulesets and environments. It does not delete unmanaged
+GitHub settings, rulesets, environments, or secrets.

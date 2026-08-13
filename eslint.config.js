@@ -314,19 +314,6 @@ export default tseslint.config(
     },
   },
 
-  // The one file that predates the split above. Its API client, drift
-  // comparison and apply logic are still in the entry point, so it is neither
-  // size-limited nor covered. docs/ai/improvement-backlog.md carries the
-  // proposal to decompose it into scripts/lib/; this exemption is written here,
-  // in the enforcement layer, so it stays visible until that happens.
-  {
-    files: ['scripts/github-settings.ts'],
-    rules: {
-      'max-lines': 'off',
-      'max-lines-per-function': 'off',
-    },
-  },
-
   // --- Shell scripts are not linted here ------------------------------------
   //
   // scripts/*.sh has no static analysis at all in this toolchain: ESLint does
