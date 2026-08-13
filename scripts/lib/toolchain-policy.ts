@@ -54,6 +54,9 @@ export function tomlSection(source: string, section: string): string {
 export function tomlString(source: string, key: string): string | undefined {
   for (const line of source.split('\n')) {
     const trimmed = line.trim();
+    // Stryker disable next-line ConditionalExpression,MethodExpression,BlockStatement:
+    // a line starting with `#` can never also start with `key`, so skipping
+    // it here can never change whether the regex below matches.
     if (trimmed.startsWith('#')) {
       continue;
     }

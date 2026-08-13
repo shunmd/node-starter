@@ -47,8 +47,15 @@ function packageJson(node = NODE_VERSION, pnpm = PNPM_VERSION): unknown {
 
 describe('tomlSection', () => {
   it('returns only the requested table', () => {
-    expect(tomlSection(MISE_TOML, 'tools')).toContain('gitleaks');
-    expect(tomlSection(MISE_TOML, 'tools')).not.toContain('lockfile');
+    expect(tomlSection(MISE_TOML, 'tools')).toStrictEqual(
+      'node = "24.19.0"\npnpm = "11.20.0"\ngitleaks = "8.29.1"\n',
+    );
+  });
+
+  it('matches a table header padded with surrounding whitespace', () => {
+    expect(tomlSection('  [tools]  \nnode = "24.19.0"\n', 'tools')).toBe(
+      'node = "24.19.0"\n',
+    );
   });
 
   it('returns nothing for a table that is not present', () => {
@@ -58,6 +65,15 @@ describe('tomlSection', () => {
   it('reads a table that runs to the end of the file', () => {
     expect(tomlSection(MISE_TOML, 'settings')).toContain('lockfile = true');
   });
+
+  it('stops a table at the next header, even one padded with whitespace', () => {
+    expect(
+      tomlSection(
+        '[tools]\nnode = "24.19.0"\n  [settings]  \nlockfile = true\n',
+        'tools',
+      ),
+    ).toBe('node = "24.19.0"');
+  });
 });
 
 describe('tomlString', () => {
@@ -65,8 +81,18 @@ describe('tomlString', () => {
     expect(tomlString('node = "24.19.0"', 'node')).toBe('24.19.0');
   });
 
+  it('reads a quoted value indented with leading whitespace', () => {
+    expect(tomlString('  node = "24.19.0"', 'node')).toBe('24.19.0');
+  });
+
   it('ignores a commented-out assignment', () => {
     expect(tomlString('# node = "23.0.0"\nnode = "24.19.0"', 'node')).toBe(
+      '24.19.0',
+    );
+  });
+
+  it('ignores a commented-out assignment indented with leading whitespace', () => {
+    expect(tomlString('  # node = "23.0.0"\nnode = "24.19.0"', 'node')).toBe(
       '24.19.0',
     );
   });
@@ -95,6 +121,12 @@ describe('readMisePins', () => {
       'must pin both node and pnpm',
     );
   });
+
+  it('rejects a file that pins only pnpm', () => {
+    expect(() => readMisePins('[tools]\npnpm = "11.20.0"\n')).toThrow(
+      'must pin both node and pnpm',
+    );
+  });
 });
 
 describe('readDeclaredPins', () => {
@@ -107,6 +139,11 @@ describe('readDeclaredPins', () => {
 
   it('rejects a manifest that is not an object', () => {
     expect(() => readDeclaredPins('{}')).toThrow('did not parse to an object');
+  });
+
+  it('rejects a null manifest without crashing', () => {
+    expect(() => readDeclaredPins(null)).not.toThrow(TypeError);
+    expect(() => readDeclaredPins(null)).toThrow('did not parse to an object');
   });
 
   it('rejects a manifest with no devEngines block', () => {
@@ -125,6 +162,17 @@ describe('readDeclaredPins', () => {
         devEngines: {
           runtime: { version: 24 },
           packageManager: { version: '1' },
+        },
+      }),
+    ).toThrow('must be strings');
+  });
+
+  it('rejects a pnpm version that is not a string, even when node is', () => {
+    expect(() =>
+      readDeclaredPins({
+        devEngines: {
+          runtime: { version: NODE_VERSION },
+          packageManager: { version: 11 },
         },
       }),
     ).toThrow('must be strings');
@@ -148,6 +196,16 @@ describe('checkPinsAgree', () => {
     ]);
   });
 
+  it('reports a pnpm pin that drifted', () => {
+    const problems = checkPinsAgree(
+      readMisePins(MISE_TOML),
+      readDeclaredPins(packageJson(NODE_VERSION, '11.19.0')),
+    );
+    expect(problems).toStrictEqual([
+      expect.stringContaining('pnpm pin mismatch'),
+    ]);
+  });
+
   it('reports both pins when both drifted', () => {
     expect(
       checkPinsAgree(
@@ -168,7 +226,8 @@ describe('checkCooldownPolicy', () => {
       COMPLIANT_WORKSPACE.replace('7200', '1440'),
     );
     expect(problems).toStrictEqual([
-      expect.stringContaining('minimumReleaseAge'),
+      'pnpm-workspace.yaml sets minimumReleaseAge to 1440; expected 7200 ' +
+        '(5 days) to match the toolchain cooldown enforced by this script.',
     ]);
   });
 
@@ -176,7 +235,11 @@ describe('checkCooldownPolicy', () => {
     const problems = checkCooldownPolicy(
       COMPLIANT_WORKSPACE.replace('minimumReleaseAgeStrict: true', ''),
     );
-    expect(problems).toStrictEqual([expect.stringContaining('Strict')]);
+    expect(problems).toStrictEqual([
+      'pnpm-workspace.yaml must set minimumReleaseAgeStrict: true. Without ' +
+        'it pnpm auto-approves immature versions into ' +
+        'minimumReleaseAgeExclude instead of refusing them.',
+    ]);
   });
 
   it('rejects installing packages that carry no publish time', () => {
@@ -187,7 +250,9 @@ describe('checkCooldownPolicy', () => {
       ),
     );
     expect(problems).toStrictEqual([
-      expect.stringContaining('IgnoreMissingTime'),
+      'pnpm-workspace.yaml must set minimumReleaseAgeIgnoreMissingTime: ' +
+        'false, so a package without a registry publish time is refused ' +
+        'rather than treated as mature.',
     ]);
   });
 
@@ -195,14 +260,22 @@ describe('checkCooldownPolicy', () => {
     const problems = checkCooldownPolicy(
       COMPLIANT_WORKSPACE.replace('trustPolicy: no-downgrade', ''),
     );
-    expect(problems).toStrictEqual([expect.stringContaining('trustPolicy')]);
+    expect(problems).toStrictEqual([
+      'pnpm-workspace.yaml must set trustPolicy: no-downgrade, so a ' +
+        'package whose registry trust signals got weaker than the ' +
+        'lockfile recorded is refused.',
+    ]);
   });
 
   it('rejects a missing allowBuilds declaration', () => {
     const problems = checkCooldownPolicy(
       COMPLIANT_WORKSPACE.replace('allowBuilds: {}', ''),
     );
-    expect(problems).toStrictEqual([expect.stringContaining('allowBuilds')]);
+    expect(problems).toStrictEqual([
+      'pnpm-workspace.yaml must declare allowBuilds, which lists the ' +
+        'dependencies permitted to run install-time lifecycle scripts. An ' +
+        'empty map means none may run.',
+    ]);
   });
 
   it('accepts allowBuilds written as an empty value', () => {
@@ -216,6 +289,13 @@ describe('checkCooldownPolicy', () => {
   it('reports a file that is not a mapping instead of passing it', () => {
     expect(checkCooldownPolicy('- a\n')).toStrictEqual([
       expect.stringContaining('did not parse to a mapping'),
+    ]);
+  });
+
+  it('reports a null document without crashing', () => {
+    expect(() => checkCooldownPolicy('null\n')).not.toThrow();
+    expect(checkCooldownPolicy('null\n')).toStrictEqual([
+      'pnpm-workspace.yaml did not parse to a mapping.',
     ]);
   });
 });
@@ -234,17 +314,11 @@ describe('checkAge', () => {
   });
 
   it('rejects a release published inside the cooldown window', () => {
-    const published = new Date(now.getTime() - COOLDOWN_MS + 1000);
-    expect(checkAge('pnpm', PNPM_VERSION, published, now)).toStrictEqual([
-      expect.stringContaining('the cooldown is 5 days'),
-    ]);
-  });
-
-  it('says when the pin becomes acceptable', () => {
     const published = new Date('2026-08-11T00:00:00.000Z');
-    expect(checkAge('node', NODE_VERSION, published, now)[0]).toContain(
-      '2026-08-16T00:00:00.000Z',
-    );
+    expect(checkAge('node', NODE_VERSION, published, now)).toStrictEqual([
+      'node@24.19.0 was published 1.0 days ago; the cooldown is 5 days. ' +
+        'Pin an older release, or wait until 2026-08-16T00:00:00.000Z.',
+    ]);
   });
 });
 
@@ -300,6 +374,26 @@ describe('readNodeReleaseDate', () => {
   it('rejects a version the dist index does not list', () => {
     expect(() => readNodeReleaseDate(index, '25.0.0')).toThrow(
       'does not list a release',
+    );
+  });
+
+  it('skips an earlier entry for a different version before finding the match', () => {
+    const multiIndex = [
+      { version: 'v99.0.0', date: '2020-01-01' },
+      { version: `v${NODE_VERSION}`, date: '2026-07-01' },
+    ];
+    expect(readNodeReleaseDate(multiIndex, NODE_VERSION).toISOString()).toBe(
+      '2026-07-01T23:59:59.999Z',
+    );
+  });
+
+  it('skips an entry with the right version but no date string', () => {
+    const multiIndex = [
+      { version: `v${NODE_VERSION}` },
+      { version: `v${NODE_VERSION}`, date: '2026-07-01' },
+    ];
+    expect(readNodeReleaseDate(multiIndex, NODE_VERSION).toISOString()).toBe(
+      '2026-07-01T23:59:59.999Z',
     );
   });
 });

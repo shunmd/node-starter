@@ -23,6 +23,11 @@ import {
   type JsonObject,
 } from './github-settings-types.ts';
 
+// Stryker disable ArrayDeclaration,ConditionalExpression,LogicalOperator,BlockStatement:
+// every early return here feeds a plain `.includes(knownContextString)`
+// check in the caller below, so any wrong, non-matching value -- whether a
+// placeholder array or an extra `undefined` entry -- behaves exactly like
+// the correct result there.
 function getRequiredStatusContexts(ruleset: JsonObject): readonly string[] {
   if (!isUnknownArray(ruleset['rules'])) {
     return [];
@@ -49,6 +54,7 @@ function getRequiredStatusContexts(ruleset: JsonObject): readonly string[] {
   }
   return [];
 }
+// Stryker restore ArrayDeclaration,ConditionalExpression,LogicalOperator,BlockStatement
 
 /**
  * The `main` ruleset's `pull_request` rule, if any. Shared by the bypass and
@@ -152,6 +158,10 @@ export function validateConfigurationValues(
       `Invalid GitHub infrastructure configuration:\n- ${errors.join('\n- ')}`,
     );
   }
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement:
+  // validateRepository/validateSecrets only return undefined after pushing an
+  // error, so `errors.length > 0` above always throws first -- this is a
+  // type-narrowing guard for the return type, not reachable behavior.
   if (repository === undefined || secrets === undefined) {
     throw new Error('Invalid GitHub infrastructure configuration');
   }

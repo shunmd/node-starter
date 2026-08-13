@@ -84,7 +84,16 @@ describe('parseDependencyPolicy', () => {
   });
 
   it('rejects a document that is not an object', () => {
-    expect(() => parseDependencyPolicy([])).toThrow('must be a JSON object');
+    expect(() => parseDependencyPolicy([])).toThrow(
+      /^dependency-policy\.json must be a JSON object$/,
+    );
+  });
+
+  it('rejects a null document without crashing', () => {
+    expect(() => parseDependencyPolicy(null)).not.toThrow(TypeError);
+    expect(() => parseDependencyPolicy(null)).toThrow(
+      /^dependency-policy\.json must be a JSON object$/,
+    );
   });
 
   it('rejects a missing licences section', () => {
@@ -96,7 +105,7 @@ describe('parseDependencyPolicy', () => {
   it('rejects a missing vulnerabilities section', () => {
     expect(() =>
       parseDependencyPolicy({ licenses: { allowed: [], exceptions: [] } }),
-    ).toThrow('dependency-policy.vulnerabilities');
+    ).toThrow(/^dependency-policy\.vulnerabilities must be a JSON object$/);
   });
 
   it('rejects an allowed list that is not an array', () => {
@@ -114,7 +123,20 @@ describe('parseDependencyPolicy', () => {
         licenses: { allowed: [''], exceptions: [] },
         vulnerabilities: { exceptions: [] },
       }),
-    ).toThrow('SPDX identifier');
+    ).toThrow(
+      /^dependency-policy\.licenses\.allowed\[0\] must be a non-empty SPDX identifier$/,
+    );
+  });
+
+  it('rejects a non-string entry in the allowed list', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: ['MIT', 5], exceptions: [] },
+        vulnerabilities: { exceptions: [] },
+      }),
+    ).toThrow(
+      /^dependency-policy\.licenses\.allowed\[1\] must be a non-empty SPDX identifier$/,
+    );
   });
 
   it('rejects an exception with no stated reason, so silence cannot become approval', () => {
@@ -126,7 +148,25 @@ describe('parseDependencyPolicy', () => {
         },
         vulnerabilities: { exceptions: [] },
       }),
-    ).toThrow('reason must be a non-empty string');
+    ).toThrow(
+      /^dependency-policy\.licenses\.exceptions\[0\]\.reason must be a non-empty string$/,
+    );
+  });
+
+  it('rejects an exception whose reason is an empty string', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: {
+          allowed: [],
+          exceptions: [
+            { package: 'p', license: 'MPL-2.0', reason: '', owner: OWNER },
+          ],
+        },
+        vulnerabilities: { exceptions: [] },
+      }),
+    ).toThrow(
+      /^dependency-policy\.licenses\.exceptions\[0\]\.reason must be a non-empty string$/,
+    );
   });
 
   it('rejects an exception with no owner', () => {
@@ -138,7 +178,9 @@ describe('parseDependencyPolicy', () => {
         },
         vulnerabilities: { exceptions: [] },
       }),
-    ).toThrow('owner must be a non-empty string');
+    ).toThrow(
+      /^dependency-policy\.licenses\.exceptions\[0\]\.owner must be a non-empty string$/,
+    );
   });
 
   it('rejects a review date that is not a calendar date', () => {
@@ -201,13 +243,55 @@ describe('parseDependencyPolicy', () => {
     ).toThrow('YYYY-MM-DD');
   });
 
+  it('rejects a review date with trailing content after the date', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              paths: ['.>stryker>qs'],
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-11-30x',
+            },
+          ],
+        },
+      }),
+    ).toThrow('YYYY-MM-DD');
+  });
+
+  it('rejects a review date with leading content before the date', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              paths: ['.>stryker>qs'],
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: 'x2026-11-30',
+            },
+          ],
+        },
+      }),
+    ).toThrow('YYYY-MM-DD');
+  });
+
   it('rejects an exception entry that is not an object', () => {
     expect(() =>
       parseDependencyPolicy({
         licenses: { allowed: [], exceptions: ['MPL-2.0'] },
         vulnerabilities: { exceptions: [] },
       }),
-    ).toThrow('must be a JSON object');
+    ).toThrow(
+      /^dependency-policy\.licenses\.exceptions\[0\] must be a JSON object$/,
+    );
   });
 
   it('rejects a vulnerability exception without reviewed dependency paths', () => {
@@ -227,7 +311,53 @@ describe('parseDependencyPolicy', () => {
           ],
         },
       }),
-    ).toThrow('paths must contain non-empty dependency paths');
+    ).toThrow(
+      /^dependency-policy\.vulnerabilities\.exceptions\[0\]\.paths must contain non-empty dependency paths$/,
+    );
+  });
+
+  it('rejects a vulnerability exception with a non-string entry among its paths', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-11-30',
+              paths: ['.>stryker>qs', 5],
+            },
+          ],
+        },
+      }),
+    ).toThrow(
+      /^dependency-policy\.vulnerabilities\.exceptions\[0\]\.paths must contain non-empty dependency paths$/,
+    );
+  });
+
+  it('rejects a vulnerability exception with an empty-string path among valid ones', () => {
+    expect(() =>
+      parseDependencyPolicy({
+        licenses: { allowed: [], exceptions: [] },
+        vulnerabilities: {
+          exceptions: [
+            {
+              advisory: ADVISORY_ID,
+              package: 'qs',
+              reason: REASON,
+              owner: OWNER,
+              reviewBy: '2026-11-30',
+              paths: ['.>stryker>qs', ''],
+            },
+          ],
+        },
+      }),
+    ).toThrow(
+      /^dependency-policy\.vulnerabilities\.exceptions\[0\]\.paths must contain non-empty dependency paths$/,
+    );
   });
 });
 
@@ -276,18 +406,82 @@ describe('parseAuditReport', () => {
     expect(parsed[0]?.paths).toStrictEqual([]);
   });
 
+  it('skips a finding whose paths are not an array', () => {
+    const parsed = parseAuditReport({
+      advisories: {
+        a: {
+          github_advisory_id: ADVISORY_ID,
+          module_name: 'qs',
+          severity: 'low',
+          title: 't',
+          url: 'u',
+          findings: [{ paths: 'not-an-array' }, { paths: ['.>a>qs'] }],
+        },
+      },
+    });
+    expect(parsed[0]?.paths).toStrictEqual(['.>a>qs']);
+  });
+
+  it('skips a finding entry that is not a record', () => {
+    const parsed = parseAuditReport({
+      advisories: {
+        a: {
+          github_advisory_id: ADVISORY_ID,
+          module_name: 'qs',
+          severity: 'low',
+          title: 't',
+          url: 'u',
+          findings: ['not-a-record', { paths: ['.>a>qs'] }],
+        },
+      },
+    });
+    expect(parsed[0]?.paths).toStrictEqual(['.>a>qs']);
+  });
+
+  it('drops a non-string entry from a finding path array', () => {
+    const parsed = parseAuditReport({
+      advisories: {
+        a: {
+          github_advisory_id: ADVISORY_ID,
+          module_name: 'qs',
+          severity: 'low',
+          title: 't',
+          url: 'u',
+          findings: [{ paths: ['.>a>qs', 5] }],
+        },
+      },
+    });
+    expect(parsed[0]?.paths).toStrictEqual(['.>a>qs']);
+  });
+
+  it('rejects a report that is not a JSON object', () => {
+    expect(() => parseAuditReport([])).toThrow(
+      /^pnpm audit output must be a JSON object$/,
+    );
+  });
+
   it('rejects output with no advisories map rather than reporting nothing found', () => {
-    expect(() => parseAuditReport({})).toThrow('advisories');
+    expect(() => parseAuditReport({})).toThrow(
+      /^pnpm audit output\.advisories must be a JSON object$/,
+    );
   });
 
   it('rejects an advisory missing its identifier', () => {
     expect(() =>
       parseAuditReport({ advisories: { a: { module_name: 'qs' } } }),
-    ).toThrow('github_advisory_id');
+    ).toThrow(
+      /^pnpm audit advisory a\.github_advisory_id must be a non-empty string$/,
+    );
   });
 });
 
 describe('parseLicenseReport', () => {
+  it('rejects a report that is not a JSON object', () => {
+    expect(() => parseLicenseReport([])).toThrow(
+      /^pnpm licenses output must be a JSON object$/,
+    );
+  });
+
   it('turns the licence-keyed document into one row per package', () => {
     expect(
       parseLicenseReport({
@@ -303,12 +497,18 @@ describe('parseLicenseReport', () => {
   it('surfaces pnpm’s own error instead of reporting an empty licence set', () => {
     expect(() =>
       parseLicenseReport({ error: { message: 'store is incomplete' } }),
-    ).toThrow('store is incomplete');
+    ).toThrow(/^pnpm licenses list failed: store is incomplete$/);
+  });
+
+  it('reports an unknown error when the error object has no message', () => {
+    expect(() => parseLicenseReport({ error: {} })).toThrow(
+      /^pnpm licenses list failed: unknown error$/,
+    );
   });
 
   it('rejects a licence key whose value is not a list', () => {
     expect(() => parseLicenseReport({ MIT: 'left-pad' })).toThrow(
-      'must be an array',
+      /^pnpm licenses output\.MIT must be an array$/,
     );
   });
 
@@ -316,6 +516,24 @@ describe('parseLicenseReport', () => {
     expect(
       parseLicenseReport({ MIT: [{ name: 'left-pad' }] })[0],
     ).toStrictEqual({ package: 'left-pad', license: 'MIT', versions: [] });
+  });
+
+  it('drops a non-string entry from a package versions array', () => {
+    expect(
+      parseLicenseReport({
+        MIT: [{ name: 'left-pad', versions: ['1.0.0', 5] }],
+      })[0],
+    ).toStrictEqual({
+      package: 'left-pad',
+      license: 'MIT',
+      versions: ['1.0.0'],
+    });
+  });
+
+  it('rejects a package entry missing its name, naming the licence and index', () => {
+    expect(() =>
+      parseLicenseReport({ MIT: [{ versions: ['1.0.0'] }] }),
+    ).toThrow(/^pnpm licenses output\.MIT\.name must be a non-empty string$/);
   });
 });
 
@@ -431,7 +649,9 @@ describe('evaluateLicenses', () => {
       policy(),
     );
     expect(problems).toStrictEqual([
-      expect.stringContaining('licensed LGPL-3.0-only'),
+      'sonar@1.0.0 is licensed LGPL-3.0-only, which is not in the allowed ' +
+        'list. Replace the dependency, or record a reviewed exception in ' +
+        'infra/policy/dependency-policy.json.',
     ]);
   });
 
@@ -466,7 +686,8 @@ describe('evaluateLicenses', () => {
 
   it('fails on an exception that no installed package matches', () => {
     expect(evaluateLicenses([usage()], accepted)).toStrictEqual([
-      expect.stringContaining('Delete the stale exception'),
+      'dependency-policy.json accepts LGPL-3.0-only for sonar, but no ' +
+        'installed package matches. Delete the stale exception.',
     ]);
   });
 
@@ -534,6 +755,49 @@ describe('evaluateLicenses', () => {
     expect(problems[0]).toContain('GPL-3.0-only');
   });
 
+  it('does not let a prefix exception match on just its first character', () => {
+    const prefixed = policy({
+      licenseExceptions: [
+        {
+          package: 'sonar*',
+          license: 'LGPL-3.0-only',
+          reason: REASON,
+          owner: OWNER,
+        },
+      ],
+    });
+    const problems = evaluateLicenses(
+      [usage({ package: 'soap', license: 'LGPL-3.0-only' })],
+      prefixed,
+    );
+    expect(problems).toStrictEqual([
+      'soap@1.0.0 is licensed LGPL-3.0-only, which is not in the allowed ' +
+        'list. Replace the dependency, or record a reviewed exception in ' +
+        'infra/policy/dependency-policy.json.',
+      'dependency-policy.json accepts LGPL-3.0-only for sonar*, but no ' +
+        'installed package matches. Delete the stale exception.',
+    ]);
+  });
+
+  it('requires an exact match when the exception has no trailing *', () => {
+    const exact = policy({
+      licenseExceptions: [
+        { package: 'left', license: 'MPL-2.0', reason: REASON, owner: OWNER },
+      ],
+    });
+    const problems = evaluateLicenses(
+      [usage({ package: 'left-pad', license: 'MPL-2.0' })],
+      exact,
+    );
+    expect(problems).toStrictEqual([
+      'left-pad@1.0.0 is licensed MPL-2.0, which is not in the allowed ' +
+        'list. Replace the dependency, or record a reviewed exception in ' +
+        'infra/policy/dependency-policy.json.',
+      'dependency-policy.json accepts MPL-2.0 for left, but no installed ' +
+        'package matches. Delete the stale exception.',
+    ]);
+  });
+
   it('reports every offending package rather than only the first', () => {
     const problems = evaluateLicenses(
       [
@@ -543,5 +807,17 @@ describe('evaluateLicenses', () => {
       policy(),
     );
     expect(problems).toHaveLength(2);
+  });
+
+  it('joins multiple installed versions with a comma in the report', () => {
+    const problems = evaluateLicenses(
+      [usage({ license: 'LGPL-3.0-only', versions: ['1.0.0', '2.0.0'] })],
+      policy(),
+    );
+    expect(problems).toStrictEqual([
+      'left-pad@1.0.0, 2.0.0 is licensed LGPL-3.0-only, which is not in the ' +
+        'allowed list. Replace the dependency, or record a reviewed ' +
+        'exception in infra/policy/dependency-policy.json.',
+    ]);
   });
 });

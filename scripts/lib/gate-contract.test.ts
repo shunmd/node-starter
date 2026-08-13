@@ -501,6 +501,16 @@ describe('checkCiWorkflowContract', () => {
     ]);
   });
 
+  it('rejects a pull_request trigger narrowed by paths-ignore', () => {
+    const source = validCiWorkflowSource().replace(
+      '  pull_request:\n    types: [opened, synchronize, reopened]\n',
+      "  pull_request:\n    types: [opened, synchronize, reopened]\n    paths-ignore:\n      - 'docs/**'\n",
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      expect.stringContaining('restricts the pull_request trigger with paths'),
+    ]);
+  });
+
   it('rejects a workflow that is not valid YAML', () => {
     expect(checkCiWorkflowContract(':\n  - not: [valid')).toStrictEqual([
       expect.stringContaining('not valid YAML'),
@@ -689,6 +699,21 @@ describe('checkRequiredStatusChecksMatchJobs', () => {
     const problems = checkRequiredStatusChecksMatchJobs(
       {
         rules: [{ type: 'required_status_checks', parameters: {} }],
+      },
+      validCiWorkflowSource(),
+    );
+    expect(problems).toStrictEqual([
+      expect.stringContaining('does not require the "check" status check'),
+      expect.stringContaining('does not require the "mutation" status check'),
+    ]);
+  });
+
+  it('treats a required_status_checks rule with non-object parameters as requiring nothing', () => {
+    const problems = checkRequiredStatusChecksMatchJobs(
+      {
+        rules: [
+          { type: 'required_status_checks', parameters: 'not-an-object' },
+        ],
       },
       validCiWorkflowSource(),
     );

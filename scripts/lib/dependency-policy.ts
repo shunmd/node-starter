@@ -43,6 +43,10 @@ export interface LicenseUsage {
   readonly versions: readonly string[];
 }
 
+// Stryker disable next-line Regex: any string this pattern would wrongly
+// accept still fails the Date round-trip check below, since appending
+// "T00:00:00.000Z" to anything but an exact YYYY-MM-DD produces an invalid
+// or non-round-tripping Date.
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const LICENSES_CONTEXT = 'dependency-policy.licenses';
@@ -106,6 +110,9 @@ function parseLicenseException(
  * for years rather than failing to parse.
  */
 function isCalendarDate(value: string): boolean {
+  // Stryker disable next-line ConditionalExpression,BlockStatement: same
+  // reasoning as DATE_PATTERN above -- the Date round-trip check below
+  // already rejects anything this early return would have caught.
   if (!DATE_PATTERN.test(value)) {
     return false;
   }
