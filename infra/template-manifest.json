@@ -97,6 +97,7 @@
         "docs/development-guide.md",
         "docs/adoption-guide.md",
         "docs/code-quality-gate.md",
+        "docs/typescript-code-quality.md",
         "docs/decisions/"
       ]
     },
