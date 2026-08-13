@@ -17,7 +17,7 @@
  * again without someone being told.
  */
 
-const OWNERSHIPS = ['adopt', 'merge', 'project'] as const;
+const OWNERSHIPS = ['adopt', 'merge', 'project', 'template-only'] as const;
 
 export type Ownership = (typeof OWNERSHIPS)[number];
 
@@ -142,9 +142,9 @@ export function manifestEntries(
 }
 
 /**
- * Paths worth comparing against the template. `project` entries are excluded:
- * their content is a destination decision, so a diff against the template's
- * copy would only ever be noise.
+ * Paths worth comparing against the template. `project` entries are excluded
+ * because their content is a destination decision. `template-only` entries
+ * are excluded because they intentionally must not be copied to adopters.
  */
 export function comparablePaths(manifest: TemplateManifest): readonly string[] {
   return manifestEntries(manifest, ['adopt', 'merge']);

@@ -114,7 +114,9 @@ describe('parseTemplateManifest', () => {
           ],
         }),
       ),
-    ).toThrow(/ownership is "copy"; it must be one of adopt, merge, project/);
+    ).toThrow(
+      /ownership is "copy"; it must be one of adopt, merge, project, template-only/,
+    );
   });
 
   it('rejects a group with an empty path list', () => {
@@ -171,6 +173,23 @@ describe('comparablePaths', () => {
       'scripts/check-workflows.ts',
       'package.json',
     ]);
+  });
+
+  it('excludes template-only paths from adoption comparisons', () => {
+    const manifest = parseTemplateManifest(
+      manifestValue({
+        groups: [
+          {
+            id: 'template-only',
+            title: 'Only this template',
+            ownership: 'template-only',
+            paths: ['scripts/github-settings.ts'],
+          },
+        ],
+      }),
+    );
+
+    expect(comparablePaths(manifest)).toEqual([]);
   });
 });
 

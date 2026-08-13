@@ -25,6 +25,8 @@ REF="${1:-main}"
 # Paths whose ownership is "project" are excluded by --list: the owners in
 # CODEOWNERS and the accepted exceptions in infra/policy/dependency-policy.json
 # are your decisions, so a diff against the template's copy would only be noise.
+# "template-only" paths are excluded for a different reason: they are retained
+# by this repository but intentionally never adopted by destination repositories.
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: not inside a git repository" >&2

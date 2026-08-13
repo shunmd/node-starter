@@ -1,5 +1,5 @@
 {
-  "$comment": "Single source of truth for the files the template owns. scripts/check-template-manifest.ts fails the gate when a file below one of coverage.roots is not listed here, so a new enforcement-layer file cannot be added without deciding how a destination repository adopts it. scripts/diff-upstream.sh and docs/adoption-guide.md read this file rather than repeating the list. A path ending in / covers every file below it. Ownership: 'adopt' is copied as-is, 'merge' is combined with the destination's existing file, 'project' exists in both but its content is a destination decision and is never compared.",
+  "$comment": "Single source of truth for the files the template owns. scripts/check-template-manifest.ts fails the gate when a file below one of coverage.roots is not listed here, so a new enforcement-layer file cannot be added without deciding how a destination repository adopts it. scripts/diff-upstream.sh and docs/adoption-guide.md read this file rather than repeating the list. A path ending in / covers every file below it. Ownership: 'adopt' is copied as-is, 'merge' is combined with the destination's existing file, 'project' exists in both but its content is a destination decision and is never compared, and 'template-only' stays in this repository and is never copied or compared during adoption.",
   "coverage": {
     "roots": ["", "scripts", "infra", ".github", ".claude", "types", "docs"],
     "ignore": ["^docs/ai/"]
@@ -56,16 +56,39 @@
         "scripts/check-workflows.ts",
         "scripts/diff-upstream.sh",
         "scripts/secret-scan.sh",
-        "scripts/lib/"
+        "scripts/lib/dependency-policy.test.ts",
+        "scripts/lib/dependency-policy.ts",
+        "scripts/lib/gate-contract-ci.ts",
+        "scripts/lib/gate-contract.test.ts",
+        "scripts/lib/gate-contract.ts",
+        "scripts/lib/scope-contract.test.ts",
+        "scripts/lib/scope-contract.ts",
+        "scripts/lib/template-manifest.test.ts",
+        "scripts/lib/template-manifest.ts",
+        "scripts/lib/toolchain-policy.test.ts",
+        "scripts/lib/toolchain-policy.ts",
+        "scripts/lib/vulnerability-policy.test.ts",
+        "scripts/lib/vulnerability-policy.ts",
+        "scripts/lib/workflow-policy.test.ts",
+        "scripts/lib/workflow-policy.ts",
+        "scripts/lib/workflow-rules.test.ts",
+        "scripts/lib/workflow-rules.ts"
       ]
     },
     {
       "id": "github-settings",
       "title": "Declared GitHub repository settings and their tool",
-      "ownership": "adopt",
+      "ownership": "template-only",
       "paths": [
         "scripts/github-settings.ts",
         "scripts/github-settings/",
+        "scripts/lib/github-settings-approval-policy.ts",
+        "scripts/lib/github-settings-ci-contract.ts",
+        "scripts/lib/github-settings-environment.ts",
+        "scripts/lib/github-settings-normalize.ts",
+        "scripts/lib/github-settings-policy.test.ts",
+        "scripts/lib/github-settings-schema.ts",
+        "scripts/lib/github-settings-types.ts",
         "infra/github/README.md",
         "infra/github/repository-settings.json",
         "infra/github/rulesets/",
@@ -79,10 +102,15 @@
       "ownership": "merge",
       "paths": [
         ".github/workflows/ci.yml",
-        ".github/workflows/github-settings.yml",
         ".github/dependabot.yml",
         ".github/pull_request_template.md"
       ]
+    },
+    {
+      "id": "github-settings-workflow",
+      "title": "GitHub settings workflow, retained only by this template",
+      "ownership": "template-only",
+      "paths": [".github/workflows/github-settings.yml"]
     },
     {
       "id": "agent-context",

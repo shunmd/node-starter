@@ -71,7 +71,7 @@ setting.
 | Package metadata  | `package.json`, `pnpm-lock.yaml`                                                                   | Project name, runtime dependencies, scripts, package publication settings      |
 | Type and style    | `tsconfig.json`, `eslint.config.js`, `prettier.config.js`, `.prettierignore`                       | Existing compiler options and generated-file boundaries                        |
 | Tests and quality | `vitest.config.ts`, `stryker.config.json`, `knip.jsonc`, `.dependency-cruiser.json`, `.jscpd.json` | Test roots, application entrypoints, mutation scope, and dependency boundaries |
-| CI                | `.github/workflows/ci.yml`, `.github/workflows/github-settings.yml`, `.github/dependabot.yml`      | Existing deployment, release, preview, and environment-specific jobs           |
+| CI                | `.github/workflows/ci.yml`, `.github/dependabot.yml`                                               | Existing deployment, release, preview, and environment-specific jobs           |
 | Agent context     | `AGENTS.md`, `CLAUDE.md`, `docs/index.md`                                                          | Durable project rules and documentation ownership                              |
 
 The full `scripts` block from `package.json` is part of this merge.
@@ -135,11 +135,17 @@ worked procedure.
 
 ## 5. Reconcile the declared GitHub settings
 
-`infra/github/**` is the desired state for the repository's own GitHub
-settings, and `scripts/github-settings.ts` validates, compares and applies it.
-Nothing in the destination fails when this layer is missing, which is why it is
-the part adoptions most often skip. Copy the files as-is, then reconcile four
-things with the destination:
+`infra/github/**` and `scripts/github-settings.ts` are marked `template-only` in
+`infra/template-manifest.json`. They remain available for this template's own
+repository, but `scripts/diff-upstream.sh` and an adoption must not copy or
+compare them. This is intentional because the repository settings automation
+is not generally usable for private repositories. Do not carry over the
+`github:settings` package script, the `github-settings` CI job, or
+`.github/workflows/github-settings.yml` either.
+
+If a destination explicitly supports and wants this automation, adopt the
+template-only group as a separate, deliberate decision and record that choice
+in an ADR. The settings layer has four parts to reconcile:
 
 1. `repository-settings.json` — `default_branch` and the merge behaviour must
    match the destination's actual repository, not the template's.
@@ -257,7 +263,8 @@ history alone would think to look for still shows up, labelled
 
 Two situations need more care than "adopt or reject the diff":
 
-- A path whose ownership is `adopt` (under `scripts/` or `infra/github/`)
+- A path whose ownership is `adopt` (under `scripts/`, excluding the
+  `template-only` GitHub settings paths)
   should be copied wholesale with `git checkout template/main -- <path>`, not
   hand-merged; an `adopt`-owned file that was edited locally is a decision to
   record in `docs/decisions/`, not a diff to reconcile line by line.
@@ -283,8 +290,8 @@ executable pass for an agent, including the two failure modes above.
 - [ ] Existing baseline and migration branch are recorded.
 - [ ] `infra/template-manifest.json` is present and `pnpm check:manifest`
       passes.
-- [ ] Every `adopt` path — `scripts/` and `infra/github/` — is present and
-      unmodified.
+- [ ] Every `adopt` path is present and unmodified; `template-only` GitHub
+      settings paths are intentionally absent.
 - [ ] Toolchain, package manager, and dependency policy are intentional.
 - [ ] All quality tools point at the destination project's real source and test
       layout, and `pnpm check:scope` passes.
