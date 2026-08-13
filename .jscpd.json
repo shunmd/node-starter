@@ -3,7 +3,7 @@
   "ignore": ["**/*.test.ts", "**/*.spec.ts"],
   "format": ["typescript"],
   "threshold": 2,
-  "reporters": ["consoleFull"],
+  "reporters": ["console"],
   "absolute": true,
   "gitignore": true
 }

@@ -66,6 +66,7 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Supply Chain    | Unpinned CI Action            | `= 0`              | Active: `pnpm check:workflows`                                                 |
 | Supply Chain    | Dependency Update Proposal    | weekly             | Active: Dependabot (`.github/dependabot.yml`)                                  |
 | CI Policy       | Workflow Policy Violation     | `= 0`              | Active: `pnpm check:workflows`                                                 |
+| Gate Integrity  | Gate Contract Violation       | `= 0`              | Active: `pnpm check:gate-contract` (`scripts/lib/gate-contract.ts`)            |
 | Security        | Secret Finding (working tree) | `= 0`              | Active: Gitleaks `dir`                                                         |
 | Security        | Secret Finding (history)      | `= 0`              | Active: Gitleaks `git`                                                         |
 | Test            | Failed Test                   | `= 0`              | Active: Vitest                                                                 |
@@ -95,6 +96,9 @@ pnpm verify
 ```text
 Toolchain policy
   -> Workflow policy
+  -> Gate contract (this document vs. package.json / vitest.config.ts /
+     stryker.config.json / eslint.config.js / .dependency-cruiser.json /
+     ci.yml / rulesets/main.json)
   -> Format
   -> Lint
   -> Type Check
@@ -352,7 +356,34 @@ pnpm check:workflows
   それに影響できる者はコマンドを実行できる。`env:`経由で渡す。
 - `actions/checkout`は`persist-credentials: false`を指定する。
 
-### 4.15 承認なしのマージ保護
+### 4.15 Gate Contract
+
+Quality Gateを構成するファイル自体が、この文書の基準からずれていないかを
+検証する。ESLintルールを`warn`へ弱める、Coverage対象から`scripts/lib`を
+除外する、Mutation Scoreの閾値を80未満へ下げる、`pnpm check`から必須Stepを
+削除する、Rulesetのrequired status checkとCI Job名が食い違う、といった変更は
+コードレビューを経ずにマージされ得る。この文書はGateの意図を記述するが、
+実行はしない。
+
+```sh
+pnpm check:gate-contract
+```
+
+対象は`package.json`のscript一覧、`vitest.config.ts`のcoverage対象と閾値、
+`stryker.config.json`のmutate対象と閾値、`eslint.config.js`の主要ルールが
+`error`であること、`.dependency-cruiser.json`の必須forbidden ruleと
+severity、`ci.yml`の必須Job(`check`、`mutation`)がif条件・
+`continue-on-error`・path filterで無効化されていないこと、および
+`infra/github/rulesets/main.json`のrequired status checkとci.ymlのJob名が
+一致することである。判定ロジックは`scripts/lib/gate-contract.ts`にあり、
+他のEnforcement Layer同様、Coverage・Mutation Testingの対象である。
+
+この検査は各ファイルの**宣言された形**を読むだけで、実行時の値は見ない。
+したがって「Gateが正しく動くこと」自体の証明ではなく、他のCheckがそれを
+担う。この検査が証明するのは、Gateを構成する設定が壊れた状態のまま
+マージされないことである。
+
+### 4.16 承認なしのマージ保護
 
 Quality Gateが「人的レビューの卒業」を意味するのは、機械的に判定できる
 範囲についてだけである。Enforcement Layer自体の変更も、保護ファイル通知
@@ -363,10 +394,10 @@ Quality Gateが「人的レビューの卒業」を意味するのは、機械�
 
 境界は二重になっており、役割が異なる。
 
-| 仕組み                     | 何を保証するか                                |
-| -------------------------- | --------------------------------------------- |
-| CI `protected-file-notice` | 変更パスをPRコメントに記録する情報通知        |
-| `main` ruleset             | `check`、`mutation`、スレッド解決を必須にする |
+| 仕組み                     | 何を保証するか                                                   |
+| -------------------------- | ---------------------------------------------------------------- |
+| CI `protected-file-notice` | 変更パスをPRコメントに記録する情報通知                           |
+| `main` ruleset             | `check`、`mutation`、`github-settings`、スレッド解決を必須にする |
 
 前者は制御ではなく情報通知であり、PRのtitleやlabelも要求しない。実際の
 承認は要求しない。`.github/CODEOWNERS`は、必要なプロジェクトが後から
@@ -379,6 +410,7 @@ code-owner reviewを有効化するためのメタデータとして残してい
 
 ```text
 Workflow Policy
+  -> Gate Contract
   -> Format
   -> Lint
   -> Type Check

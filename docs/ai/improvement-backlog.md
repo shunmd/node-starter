@@ -82,6 +82,84 @@ policy question in this repository that a `= 0` gate cannot express.
 (`pnpm check:workflows` enforces this), and the sha has to be read from the
 upstream repository at the version being adopted.
 
+### Deepen the CI execution contract beyond "the job exists"
+
+**What:** extend `checkCiWorkflowContract` in `scripts/lib/gate-contract-ci.ts`
+(added alongside the Gate Contract Test) so it also rejects: a required job
+gated by an `if:` expression referencing something other than the event
+itself, a `needs:` chain that can leave a required job unreachable, a required
+job's steps moved into a second workflow file the ruleset does not name, and a
+`required_status_checks` context whose name does not match any job's
+effective status-check name (the job's `name:` field, not just its key). It
+should also confirm `scripts/github-settings.ts --check` runs in CI as exactly
+`--check` (optionally `--check --remote`), never `--apply` outside the
+protected `workflow_dispatch` path.
+
+**Why:** the Gate Contract Test in `scripts/lib/gate-contract.ts` and
+`scripts/lib/gate-contract-ci.ts` proves the `check` and `mutation` jobs exist,
+are not short-circuited by `if: false` or `continue-on-error: true`, and are
+not excluded by a `paths` filter on the `pull_request` trigger. It does not yet
+prove they always _run to completion on the path that matters_ -- a `needs:`
+graph that silently strands a job, or a job quietly moved to a workflow the
+ruleset was never updated to watch, would still pass today's contract.
+
+**Cost:** meaningfully more complex than the existing check: reasoning about
+`needs:` reachability and cross-workflow job movement needs a small graph
+walk, not a field read, and is easy to get subtly wrong in a way that either
+misses real weakenings or false-positives on legitimate workflow shapes.
+
+### Ratchet quality thresholds and scope against the PR's base branch
+
+**What:** a `gate-ratchet` check that fetches the pull request's base-branch
+version of `package.json`, `vitest.config.ts`, `stryker.config.json`,
+`eslint.config.js`, `.dependency-cruiser.json` and
+`infra/github/rulesets/main.json` (via `git show <base-sha>:<path>`) and fails
+if the head version lowers a coverage or mutation threshold, narrows the
+`src/**` / `scripts/lib/**` coverage or mutation scope, downgrades an ESLint
+rule from `error`, downgrades a dependency-cruiser rule's severity, removes a
+required status check, or removes a script from `pnpm check`'s chain --
+independent of whether the resulting configuration still satisfies the Gate
+Contract Test's fixed floor.
+
+**Why:** the Gate Contract Test enforces a fixed floor (thresholds `>= 80`,
+specific rules present at `error`). It cannot by itself distinguish "was
+already at 85% and a PR drops it to 81%" from "has always been 81%" -- both
+pass the same fixed check. A ratchet is the mechanism that turns "does not
+violate the floor" into "does not move backward", which is what
+`docs/code-quality-gate.md` section 1.2 asks for but nothing currently
+verifies mechanically.
+
+**Cost:** needs the base SHA, which means it only runs meaningfully in CI (or
+locally against a real base ref), not as a plain `pnpm verify` step run from a
+detached worktree. Comparing "scope" rather than just thresholds means parsing
+the same glob lists the Gate Contract Test already parses, twice, once per
+ref -- worth sharing code with `scripts/lib/gate-contract.ts` rather than
+duplicating the extraction logic.
+
+### Add a required `gate-integrity` status check for the gate contract
+
+**What:** add a `gate-integrity` job to `.github/workflows/ci.yml` running
+`pnpm check:gate-contract` as its own step (and, once it exists, the ratchet
+check above), and require it in `infra/github/rulesets/main.json` alongside
+`check`, `mutation` and `github-settings`.
+
+**Why:** this entry originally paired two changes: removing `main`'s
+`bypass_actors` entry, and giving `check:gate-contract` its own required
+status. The bypass removal is done --
+[ADR 8](../decisions/0008-no-required-human-approval-solo-repo.md) records it
+as a deliberate solo-repository policy, and
+`scripts/lib/github-settings-approval-policy.ts` now fails
+`github-settings --check` if `bypass_actors`, `require_code_owner_review`,
+`require_last_push_approval`, or a missing `check`/`mutation`/`github-settings`
+status check reappears in `rulesets/main.json`. What remains is that
+`pnpm check:gate-contract` still only runs as one step inside the `check`
+job's chain, so a gate-contract violation is reported as an undifferentiated
+`check` failure rather than its own named status.
+
+**Cost:** a fourth required CI job adds Actions runner startup time to every
+pull request; `check:gate-contract` itself runs in seconds, so the job itself
+is not the expensive part.
+
 ### Measure duplication on changed lines
 
 **What:** replace or supplement jscpd's whole-tree percentage with a

@@ -22,6 +22,7 @@ historical rationale.
 | Dependency vulnerabilities, licences | `scripts/lib/dependency-policy.ts`         |
 | Accepted dependency exceptions       | `infra/policy/dependency-policy.json`      |
 | Workflow (CI) policy                 | `scripts/lib/workflow-policy.ts`           |
+| Quality gate's own configuration     | `scripts/lib/gate-contract.ts`             |
 | Dependency update proposals          | `.github/dependabot.yml`                   |
 | Protected-path ownership metadata    | `.github/CODEOWNERS`                       |
 | CI execution                         | `.github/workflows/ci.yml`                 |
