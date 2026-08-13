@@ -45,6 +45,14 @@ const REQUIRED_SCRIPTS = [
   'check:toolchain',
   'check:workflows',
   'check:deps',
+  // The three below were part of the gate long before they were required here.
+  // An adoption that copied the files but not the scripts produced a
+  // repository where the gate contract, the template inventory and the GitHub
+  // settings tool were present and never run.
+  'check:gate-contract',
+  'check:manifest',
+  'check:scope',
+  'github:settings',
 ] as const;
 
 const REQUIRED_ERROR_RULES = [

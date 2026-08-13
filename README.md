@@ -182,7 +182,9 @@ mise trust && mise install && mise exec -- pnpm install && mise exec -- pnpm ver
 Or use the "Use this template" button on GitHub.
 
 For an existing project, follow the
-[`existing-project adoption guide`](docs/adoption-guide.md).
+[`existing-project adoption guide`](docs/adoption-guide.md). An agent can run
+the same migration from `.claude/skills/adopt-node-starter/`, which ends by
+proving that nothing was left behind.
 
 To compare an existing project against the template later:
 
@@ -190,7 +192,10 @@ To compare an existing project against the template later:
 scripts/diff-upstream.sh
 ```
 
-Nothing syncs automatically — the script shows the diff and you decide.
+Nothing syncs automatically — the script shows the diff and you decide. An
+agent can run the full periodic-upgrade procedure — including reconciling a
+raised threshold or a new enforcement script without weakening either — from
+`.claude/skills/upgrade-node-starter/`.
 
 ## Initial customization checklist
 
@@ -255,8 +260,10 @@ Work through this before your first real commit.
 │   ├── rulesets/main.json       # Main branch ruleset and required checks.
 │   ├── environments/production.json # Production environment policy.
 │   └── secrets-manifest.json    # Secret names only; never secret values.
+├── infra/template-manifest.json # The files the template owns, by ownership.
 ├── scripts/
 │   ├── check-toolchain-age.ts  # 5-day policy for Node/pnpm; pin coherence.
+│   ├── check-template-manifest.ts # Keeps that manifest in step with the repo.
 │   ├── diff-upstream.sh        # Compare this project against the template.
 │   └── secret-scan.sh          # Gitleaks working-tree/staged-content scan.
 ├── types/

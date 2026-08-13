@@ -34,6 +34,10 @@ const REQUIRED_SCRIPT_NAMES = [
   'check:toolchain',
   'check:workflows',
   'check:deps',
+  'check:gate-contract',
+  'check:manifest',
+  'check:scope',
+  'github:settings',
 ] as const;
 
 function validPackageJson(
