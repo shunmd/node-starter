@@ -12,6 +12,8 @@
     "!**/*.spec.ts"
   ],
   "reporters": ["clear-text", "progress", "html"],
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
   "thresholds": {
     "high": 95,
     "low": 95,
