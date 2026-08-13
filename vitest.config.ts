@@ -9,6 +9,10 @@ export default defineConfig({
     // they are what decides whether everything else passes, and until they
     // were tested the gate had no gate.
     include: ['src/**/*.{test,spec}.ts', 'scripts/**/*.{test,spec}.ts'],
+
+    // No DOM, because nothing in this template renders one. Code that touches
+    // `document` or `window` -- a UI framework's components -- needs `jsdom` or
+    // `happy-dom` here, and its file extensions added to `include` above.
     environment: 'node',
 
     // Test isolation, made mechanical. A test that passes only because an

@@ -143,6 +143,7 @@ scripts/
 .gitattributes
 AGENTS.md
 CLAUDE.md
+.claude/
 ```
 
 The `protected-file-notice` CI job reports these paths in an informational pull

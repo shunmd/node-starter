@@ -52,3 +52,8 @@
 # agent behaves in this repository.
 /AGENTS.md                      @shunmd
 /CLAUDE.md                      @shunmd
+
+# Agent skills. Loaded on demand rather than at startup, so they do not change
+# every task the way the files above do -- but they tell an agent how to edit
+# the enforcement layer, which is the same authority at one remove.
+/.claude/                       @shunmd
