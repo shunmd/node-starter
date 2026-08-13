@@ -17,7 +17,7 @@ foundation.
 | Language        | TypeScript 6.0 (`strict` plus everything `strict` leaves off), ESM                          |
 | Lint            | ESLint 10 flat config, typescript-eslint `strictTypeChecked`, no warnings                   |
 | Format          | Prettier, near-default, verified in CI                                                      |
-| Test            | Vitest with an 80% per-file coverage floor                                                  |
+| Test            | Vitest with a 95% per-file coverage floor                                                   |
 | CI              | GitHub Actions running `pnpm verify` plus a required Mutation job                           |
 | Static analysis | ESLint SonarJS rules, Knip, dependency-cruiser, Gitleaks                                    |
 | AI              | `AGENTS.md` context router, imported by `CLAUDE.md`                                         |
@@ -75,8 +75,8 @@ TypeScript language features, while `typescript` in this repository and
 | `pnpm lint`            | ESLint only.                                                                                                                             |
 | `pnpm typecheck`       | `tsc --noEmit`.                                                                                                                          |
 | `pnpm test`            | Vitest, once.                                                                                                                            |
-| `pnpm test:coverage`   | Vitest with the 80% per-file lines/functions/branches/statements floor.                                                                  |
-| `pnpm test:mutation`   | Required StrykerJS mutation gate with an 80% score floor, separate from `pnpm verify`.                                                   |
+| `pnpm test:coverage`   | Vitest with the 95% per-file lines/functions/branches/statements floor.                                                                  |
+| `pnpm test:mutation`   | Required StrykerJS mutation gate with a 95% score floor, separate from `pnpm verify`.                                                    |
 | `pnpm deadcode`        | Knip unused files, dependencies and exports.                                                                                             |
 | `pnpm architecture`    | dependency-cruiser circular and production-to-test checks.                                                                               |
 | `pnpm secret:scan`     | Gitleaks scan of the working tree and the commit history.                                                                                |
@@ -87,7 +87,9 @@ TypeScript language features, while `typescript` in this repository and
 | `pnpm check:workflows` | GitHub Actions workflows are sha-pinned, timed out, and least-privilege.                                                                 |
 
 CI runs `pnpm verify` in the standard `check` job and `pnpm test:mutation` in a
-separate required `mutation` job. There is intentionally no `ci` script.
+separate required `mutation` job. Pull requests mutate only changed production
+files; pushes to `main` and scheduled runs use the full scope. There is
+intentionally no `ci` script.
 
 `pnpm verify` is the preferred name for the same gate. It includes toolchain,
 workflow, format, lint, type, dead-code, architecture, duplication, secret,

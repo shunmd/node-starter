@@ -8,7 +8,7 @@
  * exist and still run.
  *
  * Every check here reads a file's *declared* shape rather than executing it,
- * so it cannot see a threshold that is literally 80 but fed from a variable a
+ * so it cannot see a threshold that is literally 95 but fed from a variable a
  * later line reassigns. That is a narrower claim than "the gate works" --
  * proven instead by the rest of this repository's checks -- but it is still
  * worth making on its own: a change that edits one of these files to quietly
@@ -139,10 +139,10 @@ function checkCoverageThresholds(coverageBlock: string): readonly string[] {
   ] as const) {
     const match = new RegExp(`${metric}:\\s*(\\d+)`).exec(thresholdsBlock);
     const value = match?.[1] === undefined ? undefined : Number(match[1]);
-    if (value === undefined || value < 80) {
+    if (value === undefined || value < 95) {
       problems.push(
         `vitest.config.ts coverage.thresholds.${metric} is ` +
-          `${value === undefined ? 'missing' : String(value)}; the quality gate requires at least 80.`,
+          `${value === undefined ? 'missing' : String(value)}; the quality gate requires at least 95.`,
       );
     }
   }
@@ -188,9 +188,9 @@ export function checkMutationContract(
   }
   const thresholds = strykerConfig['thresholds'];
   const breakThreshold = isRecord(thresholds) ? thresholds['break'] : undefined;
-  if (typeof breakThreshold !== 'number' || breakThreshold < 80) {
+  if (typeof breakThreshold !== 'number' || breakThreshold < 95) {
     problems.push(
-      'stryker.config.json.thresholds.break must be a number of at least 80.',
+      'stryker.config.json.thresholds.break must be a number of at least 95.',
     );
   }
   return problems;
