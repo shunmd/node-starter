@@ -12,10 +12,11 @@ pnpm verify          # standard gate; same command as the CI check job
 pnpm test:mutation   # required mutation gate; same command as the CI mutation job
 ```
 
-`pnpm verify` runs `check:toolchain`, `format:check`, `lint`, `typecheck`,
-`deadcode`, `architecture`, `duplication`, `secret:scan` and `test:coverage` in
-that order, stopping at the first failure. `pnpm check` is a compatibility
-alias. Individual steps exist as separate scripts when you want a faster loop.
+`pnpm verify` runs `check:toolchain`, `check:workflows`, `check:gate-contract`,
+`format:check`, `lint`, `typecheck`, `deadcode`, `architecture`, `duplication`,
+`secret:scan`, `check:deps` and `test:coverage` in that order, stopping at the
+first failure. `pnpm check` is a compatibility alias. Individual steps exist as
+separate scripts when you want a faster loop.
 
 There is intentionally no `ci` script. CI runs `pnpm verify` and
 `pnpm test:mutation` as separate required jobs, so each job uses the same command
@@ -53,6 +54,17 @@ The fast gate includes these checks beyond formatting, linting and types:
   External reusable workflows must also use a full commit sha; local reusable
   workflows are checked when they live under `.github/workflows/`. OIDC is
   allowed only as a job-scoped `id-token: write` permission.
+- `pnpm check:gate-contract` reads `package.json`, `vitest.config.ts`,
+  `stryker.config.json`, `eslint.config.js`, `.dependency-cruiser.json`,
+  `.github/workflows/ci.yml` and `infra/github/rulesets/main.json` and fails if
+  their _declared_ shape no longer matches this document: a missing required
+  script, a coverage or mutation threshold below 80, `src/` or `scripts/lib/`
+  dropped from coverage or mutation scope, a required lint rule downgraded from
+  `error`, a dependency-cruiser rule removed or downgraded, a required CI job
+  missing, disabled, or exempted with `continue-on-error: true`, or a mismatch
+  between the ruleset's required status checks and the CI job names. It checks
+  configuration shape, not runtime behaviour -- see
+  `scripts/lib/gate-contract.ts` for what that does and does not prove.
 - `pnpm check:deps` fails on any `pnpm audit` advisory and on any licence
   outside the allow list in `infra/policy/dependency-policy.json`. See
   "Accepting a dependency exception" below.
