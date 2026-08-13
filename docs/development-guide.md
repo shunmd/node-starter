@@ -39,8 +39,10 @@ Changes to quality, toolchain, workflow or dependency policy files require the
 full gate because targeted checks cannot cover their policy impact.
 
 There is intentionally no `ci` script. CI runs `pnpm verify` and
-`pnpm test:mutation` as separate required jobs, so each job uses the same command
-developers run locally.
+`pnpm test:mutation` as separate required jobs. Pull requests pass changed
+production files to Stryker; a pull request with no changed production files
+exits successfully without running mutation testing. Pushes to `main` and
+scheduled runs use the complete mutation scope.
 
 The policy behind the gate is in
 [`docs/code-quality-gate.md`](code-quality-gate.md). It distinguishes the
@@ -78,7 +80,7 @@ The fast gate includes these checks beyond formatting, linting and types:
   `stryker.config.json`, `eslint.config.js`, `.dependency-cruiser.json`,
   `.github/workflows/ci.yml` and `infra/github/rulesets/main.json` and fails if
   their _declared_ shape no longer matches this document: a missing required
-  script, a coverage or mutation threshold below 80, `src/` or `scripts/lib/`
+  script, a coverage or mutation threshold below the configured floor, `src/` or `scripts/lib/`
   dropped from coverage or mutation scope, a required lint rule downgraded from
   `error`, a dependency-cruiser rule removed or downgraded, a required CI job
   missing, disabled, or exempted with `continue-on-error: true`, or a mismatch
@@ -104,12 +106,12 @@ The fast gate includes these checks beyond formatting, linting and types:
 - `pnpm check:deps` fails on any `pnpm audit` advisory and on any licence
   outside the allow list in `infra/policy/dependency-policy.json`. See
   "Accepting a dependency exception" below.
-- `pnpm test:coverage` keeps a floor of 80% for lines, functions, branches and
+- `pnpm test:coverage` keeps a floor of 95% for lines, functions, branches and
   statements, applied **per file** rather than across the repository, over
   `src/**` and `scripts/lib/**`. Increase it when the generated project has
   measured business logic; do not add meaningless tests to satisfy a number.
 - `pnpm test:mutation` runs StrykerJS separately from `pnpm verify`. It requires
-  a mutation score of at least 80% and fails below 80%. Stryker stores an
+  a mutation score of at least 95% and fails below 95%. Stryker stores an
   incremental report under `reports/`; CI caches that report between commits,
   so unchanged mutants are reused while a cache miss still performs a full
   mutation run.

@@ -74,11 +74,11 @@ CIから自動判定できる項目をQuality Gateに含める。設計の妥当
 | Test            | Failed Test                   | `= 0`              | Active: Vitest                                                                 |
 | Test            | Skipped / Focused Test        | `= 0`              | Active: ESLint `vitest/no-focused-tests`, `vitest/no-disabled-tests`           |
 | Test            | Test Without Assertion        | `= 0`              | Active: ESLint `vitest/expect-expect`                                          |
-| Coverage        | Line Coverage (per file)      | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
-| Coverage        | Branch Coverage (per file)    | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
-| Coverage        | Function Coverage (per file)  | `>= 80%`           | Active: Vitest coverage `perFile`                                              |
-| Coverage        | Coverage on New Code          | `>= 80%`           | Approximated by the per-file threshold; see 4.11                               |
-| Mutation        | Mutation Score                | `>= 80%`           | Active: StrykerJS (separate job)                                               |
+| Coverage        | Line Coverage (per file)      | `>= 95%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Branch Coverage (per file)    | `>= 95%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Function Coverage (per file)  | `>= 95%`           | Active: Vitest coverage `perFile`                                              |
+| Coverage        | Coverage on New Code          | `>= 95%`           | Approximated by the per-file threshold; see 4.11                               |
+| Mutation        | Mutation Score                | `>= 95%`           | Active: StrykerJS (separate job)                                               |
 | Review          | Human Approval                | not required       | Active: `main` ruleset keeps CI and thread-resolution gates                    |
 | Review          | Protected-file Notice         | informational      | Active: CI `protected-file-notice`                                             |
 | Shell           | Shell Lint Finding            | `= 0`              | Not measured: ShellCheck not in the pinned toolchain                           |
@@ -261,7 +261,7 @@ pnpm test
 
 ### 4.11 Test Coverage
 
-Line、Branch、Function Coverageを使用し、各`>= 80%`とする。条件分岐を
+Line、Branch、Function Coverageを使用し、各`>= 95%`とする。条件分岐を
 持つコードでは正常系だけでなく、false側、境界値、エラー、Optional値、
 例外経路をテストする。
 
@@ -274,8 +274,8 @@ pnpm test:coverage
 レビュアーが本来懸念するファイルこそ平均に隠れる。
 
 変更行単位のCoverageを測るツールはこのツールチェーンに含まれないが、
-ファイル単位の閾値がその代替として機能する。新規ファイルは80%未満では
-リポジトリに入れられず、既存ファイルも80%を下回る変更を加えられない。
+ファイル単位の閾値がその代替として機能する。新規ファイルは95%未満では
+リポジトリに入れられず、既存ファイルも95%を下回る変更を加えられない。
 差分そのものを測っているわけではないため、`Coverage on New Code`は
 「Active」ではなく「Approximated」と表記する。
 
@@ -288,7 +288,7 @@ argv・I/O・exitのみを担うEntry Pointとして対象外とし、そこに�
 ### 4.12 Mutation Testing
 
 Mutation Testingはテストコード自体の検出能力を測る。Mutation Score
-`>= 80%`を必須Gateとし、通常の`verify`とは分離した必須CI Jobで実行する。
+`>= 95%`を必須Gateとし、通常の`verify`とは分離した必須CI Jobで実行する。
 
 StrykerJSは通常の`verify`とは分離し、`test:mutation`を別ゲートとして実行する。
 現行のStrykerJS CoreはBabel経由で`semver@6.3.1`を引き込むため、既存の
@@ -300,8 +300,10 @@ StrykerJSは通常の`verify`とは分離し、`test:mutation`を別ゲートと
 pnpm test:mutation
 ```
 
-Mutation Scoreは`>= 80%`を必須とし、StrykerJSの`break: 80`でコマンドをFAILに
-する。対象はCoverageと同じ`src/**`と`scripts/lib/**`である。Enforcement Layer
+Mutation Scoreは`>= 95%`を必須とし、StrykerJSの`break: 95`でコマンドをFAILに
+する。PRでは変更された本番コードだけを対象とし、該当ファイルがない場合は
+正常終了する。mainへのpushとスケジュール実行では`src/**`と`scripts/lib/**`の
+全体を対象とする。Enforcement Layer
 のテストが「実行はしているが検出はしていない」状態を許さないため、品質
 ゲート自身のロジックもMutation Testingの対象とする。
 
@@ -362,7 +364,7 @@ pnpm check:workflows
 
 Quality Gateを構成するファイル自体が、この文書の基準からずれていないかを
 検証する。ESLintルールを`warn`へ弱める、Coverage対象から`scripts/lib`を
-除外する、Mutation Scoreの閾値を80未満へ下げる、`pnpm check`から必須Stepを
+除外する、CoverageまたはMutation Scoreの閾値を95未満へ下げる、`pnpm check`から必須Stepを
 削除する、Rulesetのrequired status checkとCI Job名が食い違う、といった変更は
 コードレビューを経ずにマージされ得る。この文書はGateの意図を記述するが、
 実行はしない。

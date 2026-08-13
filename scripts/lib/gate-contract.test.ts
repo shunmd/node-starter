@@ -55,10 +55,10 @@ function validVitestConfigSource(
     Record<'lines' | 'functions' | 'branches' | 'statements', number>
   > = {},
 ): string {
-  const lines = overrides.lines ?? 80;
-  const functions = overrides.functions ?? 80;
-  const branches = overrides.branches ?? 80;
-  const statements = overrides.statements ?? 80;
+  const lines = overrides.lines ?? 95;
+  const functions = overrides.functions ?? 95;
+  const branches = overrides.branches ?? 95;
+  const statements = overrides.statements ?? 95;
   return `export default {
   test: {
     coverage: {
@@ -75,10 +75,10 @@ function validVitestConfigSource(
 };`;
 }
 
-function validStrykerConfig(breakThreshold = 80): unknown {
+function validStrykerConfig(breakThreshold = 95): unknown {
   return {
     mutate: ['src/**/*.ts', 'scripts/lib/**/*.ts', '!**/*.test.ts'],
-    thresholds: { high: 80, low: 80, break: breakThreshold },
+    thresholds: { high: 95, low: 95, break: breakThreshold },
   };
 }
 
@@ -209,7 +209,7 @@ describe('checkRequiredScripts', () => {
 });
 
 describe('checkCoverageContract', () => {
-  it('accepts a coverage block that measures src/ and scripts/lib/ at >= 80%', () => {
+  it('accepts a coverage block that measures src/ and scripts/lib/ at >= 95%', () => {
     expect(checkCoverageContract(validVitestConfigSource())).toStrictEqual([]);
   });
 
@@ -225,12 +225,12 @@ describe('checkCoverageContract', () => {
     ]);
   });
 
-  it('rejects a lowered lines threshold', () => {
+  it('rejects a lines threshold below 95%', () => {
     const problems = checkCoverageContract(
-      validVitestConfigSource({ lines: 79 }),
+      validVitestConfigSource({ lines: 94 }),
     );
     expect(problems).toStrictEqual([
-      expect.stringContaining('coverage.thresholds.lines is 79'),
+      expect.stringContaining('coverage.thresholds.lines is 94'),
     ]);
   });
 
@@ -281,7 +281,7 @@ describe('checkCoverageContract', () => {
   });
 
   it('reports a single dropped metric as missing rather than lowered', () => {
-    const source = validVitestConfigSource().replace('functions: 80,\n', '');
+    const source = validVitestConfigSource().replace('functions: 95,\n', '');
     expect(checkCoverageContract(source)).toStrictEqual([
       expect.stringContaining('coverage.thresholds.functions is missing'),
     ]);
@@ -289,14 +289,14 @@ describe('checkCoverageContract', () => {
 });
 
 describe('checkMutationContract', () => {
-  it('accepts a mutate list covering src/ and scripts/lib/ with break >= 80', () => {
+  it('accepts a mutate list covering src/ and scripts/lib/ with break >= 95', () => {
     expect(checkMutationContract(validStrykerConfig())).toStrictEqual([]);
   });
 
-  it('rejects a break threshold of 79', () => {
-    expect(checkMutationContract(validStrykerConfig(79))).toStrictEqual([
+  it('rejects a break threshold of 94', () => {
+    expect(checkMutationContract(validStrykerConfig(94))).toStrictEqual([
       expect.stringContaining(
-        'thresholds.break must be a number of at least 80',
+        'thresholds.break must be a number of at least 95',
       ),
     ]);
   });
@@ -323,7 +323,7 @@ describe('checkMutationContract', () => {
     expect(
       checkMutationContract({
         mutate: 'src/**/*.ts',
-        thresholds: { break: 80 },
+        thresholds: { break: 95 },
       }),
     ).toStrictEqual([
       expect.stringContaining('mutate must be an array of glob patterns'),
@@ -338,7 +338,7 @@ describe('checkMutationContract', () => {
       }),
     ).toStrictEqual([
       expect.stringContaining(
-        'thresholds.break must be a number of at least 80',
+        'thresholds.break must be a number of at least 95',
       ),
     ]);
   });
