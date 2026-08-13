@@ -420,6 +420,25 @@ jobs:
     expect(problems).toStrictEqual([]);
   });
 
+  it('rejects a local reusable workflow whose file was never scanned', () => {
+    const problems = checkWorkflows([
+      {
+        path: '.github/workflows/ci.yml',
+        source: `name: CI
+on: push
+permissions:
+  contents: read
+jobs:
+  call:
+    uses: ./.github/workflows/reusable.yml
+`,
+      },
+    ]);
+    expect(problems).toStrictEqual([
+      expect.stringContaining('was not among the scanned workflow files'),
+    ]);
+  });
+
   it('rejects a local reusable workflow outside the workflow directory', () => {
     const problems = checkWorkflows([
       {

@@ -29,6 +29,10 @@ export function parseRepositoryReference(
     return undefined;
   }
   const [, owner, name] = match;
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement:
+  // both capture groups are non-optional `[^/]+`, so a successful match
+  // always populates them; this is a type-level guard the regex makes
+  // unreachable.
   if (owner === undefined || name === undefined) {
     return undefined;
   }
@@ -128,6 +132,9 @@ export function normalizeRulesetForComparison(value: JsonObject): JsonObject {
 export function normalizeEnvironmentForComparison(
   value: JsonObject,
 ): JsonObject {
+  // Stryker disable next-line ArrayDeclaration: the only consumer below is
+  // `.find(isRecord(rule) && ...)`, so the fallback's exact contents are
+  // unobservable as long as it isn't a matching `required_reviewers` record.
   const protectionRules = isUnknownArray(value['protection_rules'])
     ? value['protection_rules']
     : [];

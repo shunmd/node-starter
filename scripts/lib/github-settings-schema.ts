@@ -32,6 +32,9 @@ export function isBoolean(value: unknown): value is boolean {
 }
 
 export function isNumber(value: unknown): value is number {
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: every
+  // caller pairs this with Number.isInteger, which is already false for any
+  // non-finite or non-number value, so a weaker isNumber here is masked.
   return typeof value === 'number' && Number.isFinite(value);
 }
 

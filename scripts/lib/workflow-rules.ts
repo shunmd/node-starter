@@ -25,6 +25,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** `./.github/actions/setup` and `.github/actions/setup` name the same thing. */
 function normalizeLocalReference(reference: string): string {
+  // Stryker disable next-line Regex: every caller only reaches this after
+  // `uses.startsWith('./')`, so "./" is always the leftmost match and the ^
+  // anchor is unobservable through the public API.
   return reference.replace(/^\.\//, '').replace(/\/+$/, '');
 }
 
@@ -158,6 +161,9 @@ function triggerNames(workflow: Record<string, unknown>): readonly string[] {
     return [triggers];
   }
   if (Array.isArray(triggers)) {
+    // Stryker disable next-line MethodExpression,ConditionalExpression: the
+    // only caller checks `.includes('pull_request_target')`, so a non-string
+    // entry left in by a weaker filter can never change that result.
     return triggers.filter((name): name is string => typeof name === 'string');
   }
   if (isRecord(triggers)) {

@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { parse } from 'yaml';
+import type * as Yaml from 'yaml';
+
+vi.mock('yaml', async (importOriginal) => {
+  const actual = await importOriginal<typeof Yaml>();
+  return { ...actual, parse: vi.fn(actual.parse) };
+});
 
 import {
   validateConfigurationValues,
@@ -25,7 +32,11 @@ import {
   validateRepository,
   validateRuleset,
 } from './github-settings-schema.ts';
-import type { JsonObject } from './github-settings-types.ts';
+import {
+  repositoryBooleanFields,
+  repositoryStringFields,
+  type JsonObject,
+} from './github-settings-types.ts';
 
 /** A repository-settings.json that satisfies every field. */
 function compliantRepository(): JsonObject {
@@ -146,7 +157,7 @@ describe('validateRepository', () => {
     const errors: string[] = [];
     validateRepository(value, errors);
     expect(errors).toStrictEqual([
-      expect.stringContaining('private is not supported'),
+      'repository-settings.json.private is not supported',
     ]);
   });
 
@@ -157,6 +168,51 @@ describe('validateRepository', () => {
       expect.stringContaining('must contain a JSON object'),
     ]);
   });
+
+  it('rejects null without crashing', () => {
+    const errors: string[] = [];
+    let result: JsonObject | undefined;
+    expect(() => {
+      result = validateRepository(null, errors);
+    }).not.toThrow();
+    expect(result).toBeUndefined();
+    expect(errors).toStrictEqual([
+      'repository-settings.json must contain a JSON object',
+    ]);
+  });
+
+  it('rejects a string field of the wrong type', () => {
+    const value = { ...compliantRepository(), default_branch: 1 };
+    const errors: string[] = [];
+    validateRepository(value, errors);
+    expect(errors).toStrictEqual([
+      expect.stringContaining('default_branch must be a string'),
+    ]);
+  });
+
+  it.each([...repositoryBooleanFields])(
+    'rejects %s when it is not a boolean',
+    (field) => {
+      const value = { ...compliantRepository(), [field]: 'nope' };
+      const errors: string[] = [];
+      validateRepository(value, errors);
+      expect(errors).toStrictEqual([
+        `repository-settings.json.${field} must be a boolean`,
+      ]);
+    },
+  );
+
+  it.each([...repositoryStringFields])(
+    'rejects %s when it is not a string',
+    (field) => {
+      const value = { ...compliantRepository(), [field]: 1 };
+      const errors: string[] = [];
+      validateRepository(value, errors);
+      expect(errors).toStrictEqual([
+        `repository-settings.json.${field} must be a string`,
+      ]);
+    },
+  );
 });
 
 describe('validateRuleset', () => {
@@ -173,7 +229,33 @@ describe('validateRuleset', () => {
     const errors: string[] = [];
     validateRuleset(ruleset, 'rulesets/main.json', errors);
     expect(errors).toContainEqual(
-      expect.stringContaining('target must be branch, tag, or push'),
+      'rulesets/main.json.target must be branch, tag, or push',
+    );
+  });
+
+  it.each(['tag', 'push'])('accepts %s as a valid target', (target) => {
+    const ruleset = { ...compliantMainRuleset(), target };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toStrictEqual([]);
+  });
+
+  it.each(['disabled', 'evaluate'])(
+    'accepts %s as a valid enforcement',
+    (enforcement) => {
+      const ruleset = { ...compliantMainRuleset(), enforcement };
+      const errors: string[] = [];
+      validateRuleset(ruleset, 'rulesets/main.json', errors);
+      expect(errors).toStrictEqual([]);
+    },
+  );
+
+  it('rejects an unsupported enforcement', () => {
+    const ruleset = { ...compliantMainRuleset(), enforcement: 'sometimes' };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.enforcement must be active, disabled, or evaluate',
     );
   });
 
@@ -206,9 +288,73 @@ describe('validateRuleset', () => {
     const errors: string[] = [];
     validateRuleset(ruleset, 'rulesets/main.json', errors);
     expect(errors).toContainEqual(
-      expect.stringContaining(
-        'required_status_checks must be a non-empty array',
-      ),
+      'rulesets/main.json.rules[4].parameters.required_status_checks must be a non-empty array',
+    );
+  });
+
+  it('rejects a rules value that is not an array', () => {
+    const ruleset = { ...compliantMainRuleset(), rules: 'none' };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules must be a non-empty array',
+    );
+  });
+
+  it('rejects an empty rules array', () => {
+    const ruleset = { ...compliantMainRuleset(), rules: [] };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules must be a non-empty array',
+    );
+  });
+
+  it('reports only the missing-target error when target is absent', () => {
+    const ruleset = compliantMainRuleset();
+    delete ruleset['target'];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toStrictEqual([
+      'rulesets/main.json.target must be a non-empty string',
+    ]);
+  });
+
+  it('reports only the missing-enforcement error when enforcement is absent', () => {
+    const ruleset = compliantMainRuleset();
+    delete ruleset['enforcement'];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toStrictEqual([
+      'rulesets/main.json.enforcement must be a non-empty string',
+    ]);
+  });
+
+  it('rejects an unsupported pull_request parameter key', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const pullRequestRule = rules.find(
+      (rule) => rule['type'] === 'pull_request',
+    )!;
+    (pullRequestRule['parameters'] as JsonObject)['unexpected'] = true;
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[3].parameters.unexpected is not supported',
+    );
+  });
+
+  it('rejects an unsupported required_status_checks parameter key', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['unexpected'] = true;
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters.unexpected is not supported',
     );
   });
 
@@ -217,8 +363,281 @@ describe('validateRuleset', () => {
     const errors: string[] = [];
     validateRuleset(ruleset, 'rulesets/main.json', errors);
     expect(errors).toContainEqual(
-      expect.stringContaining('include and exclude must be string arrays'),
+      'rulesets/main.json.conditions.ref_name include and exclude must be string arrays',
     );
+  });
+
+  it('rejects a ref_name with a valid include but a malformed exclude', () => {
+    const ruleset = {
+      ...compliantMainRuleset(),
+      conditions: {
+        ref_name: { include: ['refs/heads/main'], exclude: 'none' },
+      },
+    };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.conditions.ref_name include and exclude must be string arrays',
+    );
+  });
+
+  it('rejects a conditions value that is not an object', () => {
+    const ruleset = { ...compliantMainRuleset(), conditions: 'always' };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.conditions must be an object',
+    );
+  });
+
+  it('rejects a ref_name that is not an object', () => {
+    const ruleset = {
+      ...compliantMainRuleset(),
+      conditions: { ref_name: 'main' },
+    };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.conditions.ref_name must be an object',
+    );
+  });
+
+  it('rejects a pull_request rule with no parameters object', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const pullRequestRule = rules.find(
+      (rule) => rule['type'] === 'pull_request',
+    )!;
+    delete pullRequestRule['parameters'];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[3].parameters must be an object',
+    );
+  });
+
+  it.each([-1, 3.5, 7])(
+    'rejects %s as an out-of-range or non-integer required_approving_review_count',
+    (count) => {
+      const ruleset = compliantMainRuleset();
+      const rules = ruleset['rules'] as JsonObject[];
+      const pullRequestRule = rules.find(
+        (rule) => rule['type'] === 'pull_request',
+      )!;
+      (pullRequestRule['parameters'] as JsonObject)[
+        'required_approving_review_count'
+      ] = count;
+      const errors: string[] = [];
+      validateRuleset(ruleset, 'rulesets/main.json', errors);
+      expect(errors).toStrictEqual([
+        'rulesets/main.json.rules[3].parameters.required_approving_review_count must be an integer from 0 to 6',
+      ]);
+    },
+  );
+
+  it.each([0, 6])(
+    'accepts %s as a valid required_approving_review_count',
+    (count) => {
+      const ruleset = compliantMainRuleset();
+      const rules = ruleset['rules'] as JsonObject[];
+      const pullRequestRule = rules.find(
+        (rule) => rule['type'] === 'pull_request',
+      )!;
+      (pullRequestRule['parameters'] as JsonObject)[
+        'required_approving_review_count'
+      ] = count;
+      const errors: string[] = [];
+      validateRuleset(ruleset, 'rulesets/main.json', errors);
+      expect(errors).toStrictEqual([]);
+    },
+  );
+
+  it('rejects a required_status_checks rule with no parameters object', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    delete statusChecksRule['parameters'];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters must be an object',
+    );
+  });
+
+  it('rejects a non-boolean required_status_checks flag', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)[
+      'strict_required_status_checks_policy'
+    ] = 'yes';
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters.strict_required_status_checks_policy must be a boolean',
+    );
+  });
+
+  it('rejects a non-boolean do_not_enforce_on_create flag', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['do_not_enforce_on_create'] =
+      'yes';
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters.do_not_enforce_on_create must be a boolean',
+    );
+  });
+
+  it('rejects a required status check entry that is not an object', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] = [
+      'not-an-object',
+    ];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters.required_status_checks[0] must be an object',
+    );
+  });
+
+  it('accepts a required status check with a valid integration_id', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] = [
+      { context: 'check', integration_id: 42 },
+    ];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toStrictEqual([]);
+  });
+
+  it('rejects a required status check with a malformed integration_id', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] = [
+      { context: 'check', integration_id: 1.5 },
+    ];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toStrictEqual([
+      'rulesets/main.json.rules[4].parameters.required_status_checks[0].integration_id must be an integer when present',
+    ]);
+  });
+
+  it('rejects a required status check with an unsupported key', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] = [
+      { context: 'check', unexpected: true },
+    ];
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[4].parameters.required_status_checks[0].unexpected is not supported',
+    );
+  });
+
+  it('rejects a rule that is not an object', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    rules.push('not-a-rule' as unknown as JsonObject);
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[5] has an unsupported type',
+    );
+  });
+
+  it('rejects a null rule without crashing', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    rules.push(null as unknown as JsonObject);
+    const errors: string[] = [];
+    expect(() =>
+      validateRuleset(ruleset, 'rulesets/main.json', errors),
+    ).not.toThrow();
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[5] has an unsupported type',
+    );
+  });
+
+  it('rejects a rule whose type is not a string', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    rules.push({ type: 5 });
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[5] has an unsupported type',
+    );
+  });
+
+  it('rejects a rule with an unsupported type', () => {
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    rules.push({ type: 'not-a-real-type' });
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      'rulesets/main.json.rules[5] has an unsupported type',
+    );
+  });
+
+  it('rejects bypass_actors that is not an array', () => {
+    const ruleset = { ...compliantMainRuleset(), bypass_actors: 'none' };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual(
+      "rulesets/main.json['bypass_actors'] must be an array",
+    );
+  });
+
+  it('returns undefined when the ruleset has no name', () => {
+    const ruleset = { ...compliantMainRuleset(), name: '' };
+    const errors: string[] = [];
+    expect(
+      validateRuleset(ruleset, 'rulesets/main.json', errors),
+    ).toBeUndefined();
+    expect(errors).toContainEqual(
+      'rulesets/main.json.name must be a non-empty string',
+    );
+  });
+
+  it('rejects a value that is not a JSON object', () => {
+    const errors: string[] = [];
+    expect(validateRuleset([], 'rulesets/main.json', errors)).toBeUndefined();
+    expect(errors).toStrictEqual([
+      'rulesets/main.json must contain a JSON object',
+    ]);
+  });
+
+  it('rejects an unsupported top-level key', () => {
+    const ruleset = { ...compliantMainRuleset(), owner: 'someone' };
+    const errors: string[] = [];
+    validateRuleset(ruleset, 'rulesets/main.json', errors);
+    expect(errors).toContainEqual('rulesets/main.json.owner is not supported');
   });
 });
 
@@ -315,6 +734,54 @@ describe('validateEnvironment', () => {
         'reviewers[1] must contain a User or Team type and integer id',
       ),
     );
+  });
+
+  it('accepts a valid reviewer entry without an error', () => {
+    const environment = {
+      ...compliantProductionEnvironment(),
+      reviewers: [{ type: 'Team', id: 42 }],
+    };
+    const errors: string[] = [];
+    validateEnvironment(environment, 'environments/production.json', errors);
+    expect(errors).toStrictEqual([]);
+  });
+
+  it('rejects deployment_branch_policy flags that are not booleans', () => {
+    const environment = {
+      ...compliantProductionEnvironment(),
+      deployment_branch_policy: {
+        protected_branches: 'yes',
+        custom_branch_policies: false,
+      },
+    };
+    const errors: string[] = [];
+    validateEnvironment(environment, 'environments/production.json', errors);
+    expect(errors).toContainEqual(
+      expect.stringContaining(
+        'deployment_branch_policy flags must be booleans',
+      ),
+    );
+  });
+
+  it('rejects a value that is not a JSON object', () => {
+    const errors: string[] = [];
+    expect(
+      validateEnvironment([], 'environments/production.json', errors),
+    ).toBeUndefined();
+    expect(errors).toContainEqual(
+      expect.stringContaining('must contain a JSON object'),
+    );
+  });
+
+  it('returns undefined when the environment name is missing', () => {
+    const environment = {
+      ...compliantProductionEnvironment(),
+      environment: '',
+    };
+    const errors: string[] = [];
+    expect(
+      validateEnvironment(environment, 'environments/production.json', errors),
+    ).toBeUndefined();
   });
 });
 
@@ -512,6 +979,105 @@ describe('validateConfigurationValues', () => {
     },
   );
 
+  it('fails when required_status_checks parameters is not an array', () => {
+    const { repositoryValue, environmentDocuments, secretValue } =
+      validConfiguration();
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] =
+      'not-an-array';
+    const rulesetDocuments = [{ path: 'rulesets/main.json', value: ruleset }];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/must require the check status check/);
+  });
+
+  it('fails when every required_status_checks entry is malformed', () => {
+    const { repositoryValue, environmentDocuments, secretValue } =
+      validConfiguration();
+    const ruleset = compliantMainRuleset();
+    const rules = ruleset['rules'] as JsonObject[];
+    const statusChecksRule = rules.find(
+      (rule) => rule['type'] === 'required_status_checks',
+    )!;
+    (statusChecksRule['parameters'] as JsonObject)['required_status_checks'] = [
+      'not-an-object',
+      { integration_id: 1 },
+    ];
+    const rulesetDocuments = [{ path: 'rulesets/main.json', value: ruleset }];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/must require the check status check/);
+  });
+
+  it('fails when the main ruleset has no required_status_checks rule at all', () => {
+    const { repositoryValue, environmentDocuments, secretValue } =
+      validConfiguration();
+    const ruleset = compliantMainRuleset();
+    ruleset['rules'] = (ruleset['rules'] as JsonObject[]).filter(
+      (rule) => rule['type'] !== 'required_status_checks',
+    );
+    const rulesetDocuments = [{ path: 'rulesets/main.json', value: ruleset }];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/must require the check status check/);
+  });
+
+  it('fails when a ruleset document does not parse to an object', () => {
+    const { repositoryValue, environmentDocuments, secretValue } =
+      validConfiguration();
+    const rulesetDocuments = [
+      { path: 'rulesets/broken.json', value: [] },
+      { path: 'rulesets/main.json', value: compliantMainRuleset() },
+    ];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/rulesets\/broken\.json must contain a JSON object/);
+  });
+
+  it('fails when an environment document does not parse to an object', () => {
+    const { repositoryValue, rulesetDocuments, secretValue } =
+      validConfiguration();
+    const environmentDocuments = [
+      { path: 'environments/broken.json', value: [] },
+      {
+        path: 'environments/production.json',
+        value: compliantProductionEnvironment(),
+      },
+    ];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/environments\/broken\.json must contain a JSON object/);
+  });
+
   it('fails when the main ruleset declares a bypass actor', () => {
     const { repositoryValue, environmentDocuments, secretValue } =
       validConfiguration();
@@ -607,6 +1173,36 @@ describe('validateConfigurationValues', () => {
       ),
     ).toThrow(/must contain a production environment/);
   });
+
+  it('fails when every declared environment is not production', () => {
+    const { repositoryValue, rulesetDocuments, secretValue } =
+      validConfiguration();
+    const environmentDocuments = [
+      {
+        path: 'environments/staging.json',
+        value: { ...compliantProductionEnvironment(), environment: 'staging' },
+      },
+    ];
+    expect(() =>
+      validateConfigurationValues(
+        repositoryValue,
+        rulesetDocuments,
+        environmentDocuments,
+        secretValue,
+      ),
+    ).toThrow(/must contain a production environment/);
+  });
+
+  it('reports multiple validation failures joined on their own line', () => {
+    const { environmentDocuments, secretValue } = validConfiguration();
+    expect(() =>
+      validateConfigurationValues([], [], environmentDocuments, secretValue),
+    ).toThrow(
+      'Invalid GitHub infrastructure configuration:\n' +
+        '- repository-settings.json must contain a JSON object\n' +
+        '- rulesets must contain a main.json ruleset named main',
+    );
+  });
 });
 
 describe('validateMainRulesetApprovalPolicy', () => {
@@ -626,6 +1222,18 @@ describe('validateMainRulesetApprovalPolicy', () => {
     expect(errors).toStrictEqual([
       expect.stringContaining('must not declare bypass_actors'),
     ]);
+  });
+
+  it('is a no-op when the ruleset has no pull_request rule', () => {
+    const ruleset = {
+      ...compliantMainRuleset(),
+      rules: (compliantMainRuleset()['rules'] as JsonObject[]).filter(
+        (rule) => rule['type'] !== 'pull_request',
+      ),
+    };
+    const errors: string[] = [];
+    validateMainRulesetApprovalPolicy(ruleset, errors);
+    expect(errors).toStrictEqual([]);
   });
 });
 
@@ -661,6 +1269,24 @@ jobs:
     );
   });
 
+  it('rejects a github-settings job that declares no steps at all', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings: {}
+`;
+    expect(validateCiWorkflowContract(source)).toContainEqual(
+      expect.stringContaining(
+        'job github-settings must run `node scripts/github-settings.ts --check`',
+      ),
+    );
+  });
+
   it('rejects a document with no jobs map', () => {
     expect(validateCiWorkflowContract('name: CI\n')).toStrictEqual([
       'ci.yml must define a jobs map',
@@ -670,6 +1296,16 @@ jobs:
   it('rejects invalid YAML', () => {
     expect(validateCiWorkflowContract('jobs: [')).toStrictEqual([
       expect.stringContaining('ci.yml is not valid YAML'),
+    ]);
+  });
+
+  it('stringifies a non-Error thrown while parsing ci.yml', () => {
+    vi.mocked(parse).mockImplementationOnce(() => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercises the non-Error branch of the catch
+      throw 'boom';
+    });
+    expect(validateCiWorkflowContract('jobs: {}')).toStrictEqual([
+      'ci.yml is not valid YAML: boom',
     ]);
   });
 });
@@ -718,6 +1354,96 @@ describe('normalizeRulesetForComparison', () => {
   it('tolerates a ruleset with no rules array', () => {
     expect(normalizeRulesetForComparison({ name: 'main' })).toStrictEqual({
       name: 'main',
+    });
+  });
+
+  it('passes through a pull_request rule with no parameters field without crashing', () => {
+    const apiResponse = { name: 'main', rules: [{ type: 'pull_request' }] };
+    expect(() => normalizeRulesetForComparison(apiResponse)).not.toThrow();
+    expect(normalizeRulesetForComparison(apiResponse)).toStrictEqual({
+      name: 'main',
+      rules: [{ type: 'pull_request' }],
+    });
+  });
+
+  it('passes through a pull_request rule whose parameters is not an object', () => {
+    const apiResponse = {
+      name: 'main',
+      rules: [{ type: 'pull_request', parameters: 'nope' }],
+    };
+    expect(normalizeRulesetForComparison(apiResponse)).toStrictEqual({
+      name: 'main',
+      rules: [{ type: 'pull_request', parameters: 'nope' }],
+    });
+  });
+
+  it('preserves fields outside parameters on a normalized pull_request rule', () => {
+    const apiResponse = {
+      name: 'main',
+      rules: [
+        {
+          type: 'pull_request',
+          extra_field: 'kept',
+          parameters: { require_code_owner_review: true },
+        },
+      ],
+    };
+    expect(normalizeRulesetForComparison(apiResponse)).toStrictEqual({
+      name: 'main',
+      rules: [
+        {
+          type: 'pull_request',
+          extra_field: 'kept',
+          parameters: { require_code_owner_review: true },
+        },
+      ],
+    });
+  });
+
+  it('strips unsupported required_status_checks parameter keys', () => {
+    const apiResponse = {
+      name: 'main',
+      rules: [
+        {
+          type: 'required_status_checks',
+          parameters: {
+            do_not_enforce_on_create: false,
+            unexpected: 'kept-only-by-a-broken-normalizer',
+          },
+        },
+      ],
+    };
+    expect(normalizeRulesetForComparison(apiResponse)).toStrictEqual({
+      name: 'main',
+      rules: [
+        {
+          type: 'required_status_checks',
+          parameters: { do_not_enforce_on_create: false },
+        },
+      ],
+    });
+  });
+
+  it('strips unsupported fields from a required status check entry', () => {
+    const apiResponse = {
+      name: 'main',
+      rules: [
+        {
+          type: 'required_status_checks',
+          parameters: {
+            required_status_checks: [{ context: 'check', integration_id: 42 }],
+          },
+        },
+      ],
+    };
+    expect(normalizeRulesetForComparison(apiResponse)).toStrictEqual({
+      name: 'main',
+      rules: [
+        {
+          type: 'required_status_checks',
+          parameters: { required_status_checks: [{ context: 'check' }] },
+        },
+      ],
     });
   });
 
@@ -848,6 +1574,69 @@ describe('normalizeEnvironmentForComparison', () => {
       normalizeEnvironmentForComparison(apiResponse)['reviewers'],
     ).toStrictEqual([]);
   });
+
+  it('drops a reviewer entry whose actor id is not a number', () => {
+    const apiResponse = {
+      protection_rules: [
+        {
+          type: 'required_reviewers',
+          reviewers: [{ reviewer: { type: 'User', id: 'not-a-number' } }],
+        },
+      ],
+    };
+    expect(
+      normalizeEnvironmentForComparison(apiResponse)['reviewers'],
+    ).toStrictEqual([]);
+  });
+
+  it('drops a reviewer entry whose reviewer field is an array, not a plain object', () => {
+    const reviewer = Object.assign([], { type: 'User', id: 5 });
+    const apiResponse = {
+      protection_rules: [
+        {
+          type: 'required_reviewers',
+          reviewers: [{ reviewer }],
+        },
+      ],
+    };
+    expect(
+      normalizeEnvironmentForComparison(apiResponse)['reviewers'],
+    ).toStrictEqual([]);
+  });
+
+  it('picks the required_reviewers protection rule, not any other rule', () => {
+    const apiResponse = {
+      protection_rules: [
+        'not-an-object',
+        {
+          type: 'other_rule',
+          reviewers: [{ reviewer: { type: 'Bot', id: 99 } }],
+        },
+        {
+          type: 'required_reviewers',
+          reviewers: [{ reviewer: { type: 'User', id: 1 } }],
+        },
+      ],
+    };
+    expect(
+      normalizeEnvironmentForComparison(apiResponse)['reviewers'],
+    ).toStrictEqual([{ type: 'User', id: 1 }]);
+  });
+
+  it('ignores protection_rules when it is not an array', () => {
+    const apiResponse = { protection_rules: 'none' };
+    expect(
+      normalizeEnvironmentForComparison(apiResponse)['reviewers'],
+    ).toStrictEqual([]);
+  });
+});
+
+describe('environmentBody', () => {
+  it('removes the environment field but keeps everything else', () => {
+    expect(
+      environmentBody({ environment: 'production', wait_timer: 0 }),
+    ).toStrictEqual({ wait_timer: 0 });
+  });
 });
 
 describe('reportDrift', () => {
@@ -873,17 +1662,20 @@ describe('reportDrift', () => {
 
 describe('sortJson / comparableJson', () => {
   it('sorts object keys recursively', () => {
-    expect(sortJson({ b: 1, a: { d: 2, c: 3 } })).toStrictEqual({
+    const result = sortJson({ b: 1, a: { d: 2, c: 3 } });
+    expect(result).toStrictEqual({
       a: { c: 3, d: 2 },
       b: 1,
     });
+    expect(Object.keys(result as object)).toStrictEqual(['a', 'b']);
+    const nested = (result as Record<string, object>)['a']!;
+    expect(Object.keys(nested)).toStrictEqual(['c', 'd']);
   });
 
   it('sorts objects nested inside arrays without reordering the array itself', () => {
-    expect(sortJson([{ b: 1, a: 2 }, 'x'])).toStrictEqual([
-      { a: 2, b: 1 },
-      'x',
-    ]);
+    const result = sortJson([{ b: 1, a: 2 }, 'x']) as unknown[];
+    expect(result).toStrictEqual([{ a: 2, b: 1 }, 'x']);
+    expect(Object.keys(result[0] as object)).toStrictEqual(['a', 'b']);
   });
 
   it('produces the same comparable string for differently ordered objects', () => {
@@ -939,6 +1731,19 @@ describe('checkRequiredSecrets', () => {
     );
     expect(drifts).toStrictEqual([]);
   });
+
+  it('reports a required secret that is missing', () => {
+    const drifts: string[] = [];
+    checkRequiredSecrets(
+      'repository',
+      [{ name: 'GH_ADMIN_TOKEN', required: true }],
+      [],
+      drifts,
+    );
+    expect(drifts).toStrictEqual([
+      'repository secret GH_ADMIN_TOKEN is missing',
+    ]);
+  });
 });
 
 describe('parseRepositoryReference', () => {
@@ -964,5 +1769,14 @@ describe('parseRepositoryReference', () => {
     expect(
       parseRepositoryReference('https://gitlab.com/shunmd/node-starter.git'),
     ).toBeUndefined();
+  });
+
+  it('trims surrounding whitespace before parsing', () => {
+    expect(
+      parseRepositoryReference('  git@github.com:shunmd/node-starter.git  '),
+    ).toStrictEqual({
+      owner: 'shunmd',
+      name: 'node-starter',
+    });
   });
 });
