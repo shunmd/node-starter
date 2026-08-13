@@ -27,9 +27,8 @@ import {
   type RulesetSummary,
 } from '../lib/github-settings-types.ts';
 import {
-  apiPageSize,
   request,
-  requestPagedArray,
+  requestRulesetSummaries,
   requireApiSuccess,
 } from './github-api.ts';
 
@@ -58,11 +57,18 @@ async function checkRulesetDrift(
   configuration: DesiredConfiguration,
   drifts: string[],
 ): Promise<void> {
-  const response = await requestPagedArray(
+  const { available, summaries: response } = await requestRulesetSummaries(
     reference,
-    `/rulesets?per_page=${String(apiPageSize)}`,
     'Listing repository rulesets',
   );
+  if (!available) {
+    if (configuration.rulesets.length > 0) {
+      drifts.push(
+        'rulesets are not available on this repository (requires GitHub Pro/Team/Enterprise for a private repository, or making it public); cannot verify ruleset drift',
+      );
+    }
+    return;
+  }
   const summaries: RulesetSummary[] = response.flatMap((summary) =>
     isRecord(summary) && isNumber(summary['id']) && isString(summary['name'])
       ? [{ id: summary['id'], name: summary['name'] }]

@@ -17,9 +17,8 @@ import {
 } from '../lib/github-settings-types.ts';
 import { getStringEnvironmentVariable } from './env.ts';
 import {
-  apiPageSize,
   request,
-  requestPagedArray,
+  requestRulesetSummaries,
   requireApiSuccess,
 } from './github-api.ts';
 
@@ -42,11 +41,17 @@ async function applyRulesets(
   reference: RepositoryReference,
   configuration: DesiredConfiguration,
 ): Promise<void> {
-  const rulesetSummariesResponse = await requestPagedArray(
-    reference,
-    `/rulesets?per_page=${String(apiPageSize)}`,
-    'Listing repository rulesets before apply',
-  );
+  const { available, summaries: rulesetSummariesResponse } =
+    await requestRulesetSummaries(
+      reference,
+      'Listing repository rulesets before apply',
+    );
+  if (!available) {
+    console.warn(
+      'Rulesets are not available on this repository (requires GitHub Pro/Team/Enterprise for a private repository, or making it public). Skipping ruleset apply.',
+    );
+    return;
+  }
   for (const desiredRuleset of configuration.rulesets) {
     const name = desiredRuleset['name'];
     if (!isString(name)) {
