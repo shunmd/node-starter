@@ -19,7 +19,7 @@ import { getStringEnvironmentVariable } from './env.ts';
 const execFile = promisify(execFileCallback);
 
 const apiVersion = '2022-11-28';
-export const apiPageSize = 100;
+const apiPageSize = 100;
 
 export interface ApiResponse {
   readonly status: number;
@@ -120,24 +120,50 @@ export function requireApiSuccess(
   return response.body;
 }
 
-export async function requestPagedArray(
+/**
+ * GitHub returns a 403 with this message when the Rulesets API is not
+ * available on the repository's current plan and visibility (private repos
+ * need GitHub Pro/Team/Enterprise, or the repo must be public).
+ */
+function isRulesetsUnavailable(response: ApiResponse): boolean {
+  return (
+    response.status === 403 &&
+    isRecord(response.body) &&
+    isString(response.body['message']) &&
+    /upgrade to github pro|make this repository public/i.test(
+      response.body['message'],
+    )
+  );
+}
+
+export interface RulesetSummariesResult {
+  readonly available: boolean;
+  readonly summaries: readonly unknown[];
+}
+
+/**
+ * Lists ruleset summaries, treating a plan/visibility 403 as "unavailable"
+ * instead of a failure -- callers decide whether that is a drift or a
+ * no-op skip.
+ */
+export async function requestRulesetSummaries(
   reference: RepositoryReference,
-  path: string,
   operation: string,
-): Promise<readonly unknown[]> {
+): Promise<RulesetSummariesResult> {
+  const path = `/rulesets?per_page=${String(apiPageSize)}`;
   const values: unknown[] = [];
   for (let page = 1; ; page += 1) {
-    const separator = path.includes('?') ? '&' : '?';
-    const response = requireApiSuccess(
-      await request(reference, `${path}${separator}page=${String(page)}`),
-      operation,
-    );
-    if (!isUnknownArray(response)) {
+    const response = await request(reference, `${path}&page=${String(page)}`);
+    if (page === 1 && isRulesetsUnavailable(response)) {
+      return { available: false, summaries: [] };
+    }
+    const body = requireApiSuccess(response, operation);
+    if (!isUnknownArray(body)) {
       throw new Error(`${operation} returned an invalid response`);
     }
-    values.push(...response);
-    if (response.length < apiPageSize) {
-      return values;
+    values.push(...body);
+    if (body.length < apiPageSize) {
+      return { available: true, summaries: values };
     }
   }
 }
