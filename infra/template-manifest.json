@@ -1,0 +1,123 @@
+{
+  "$comment": "Single source of truth for the files the template owns. scripts/check-template-manifest.ts fails the gate when a file below one of coverage.roots is not listed here, so a new enforcement-layer file cannot be added without deciding how a destination repository adopts it. scripts/diff-upstream.sh and docs/adoption-guide.md read this file rather than repeating the list. A path ending in / covers every file below it. Ownership: 'adopt' is copied as-is, 'merge' is combined with the destination's existing file, 'project' exists in both but its content is a destination decision and is never compared.",
+  "coverage": {
+    "roots": ["", "scripts", "infra", ".github", ".claude", "types", "docs"],
+    "ignore": ["^docs/ai/"]
+  },
+  "groups": [
+    {
+      "id": "toolchain",
+      "title": "Toolchain and package manager",
+      "ownership": "merge",
+      "paths": [
+        "mise.toml",
+        "mise.lock",
+        "pnpm-workspace.yaml",
+        "package.json",
+        "pnpm-lock.yaml"
+      ]
+    },
+    {
+      "id": "type-and-style",
+      "title": "Type checking, lint and formatting",
+      "ownership": "merge",
+      "paths": [
+        "tsconfig.json",
+        "eslint.config.js",
+        "prettier.config.js",
+        ".prettierignore",
+        ".editorconfig",
+        ".gitattributes",
+        "types/"
+      ]
+    },
+    {
+      "id": "quality-tools",
+      "title": "Tests, coverage, mutation and architecture",
+      "ownership": "merge",
+      "paths": [
+        "vitest.config.ts",
+        "stryker.config.json",
+        "knip.jsonc",
+        ".dependency-cruiser.json",
+        ".jscpd.json"
+      ]
+    },
+    {
+      "id": "enforcement-scripts",
+      "title": "Quality gate scripts",
+      "ownership": "adopt",
+      "paths": [
+        "scripts/check-dependencies.ts",
+        "scripts/check-gate-contract.ts",
+        "scripts/check-scope-contract.ts",
+        "scripts/check-template-manifest.ts",
+        "scripts/check-toolchain-age.ts",
+        "scripts/check-workflows.ts",
+        "scripts/diff-upstream.sh",
+        "scripts/secret-scan.sh",
+        "scripts/lib/"
+      ]
+    },
+    {
+      "id": "github-settings",
+      "title": "Declared GitHub repository settings and their tool",
+      "ownership": "adopt",
+      "paths": [
+        "scripts/github-settings.ts",
+        "scripts/github-settings/",
+        "infra/github/README.md",
+        "infra/github/repository-settings.json",
+        "infra/github/rulesets/",
+        "infra/github/environments/",
+        "infra/github/secrets-manifest.json"
+      ]
+    },
+    {
+      "id": "ci",
+      "title": "Continuous integration",
+      "ownership": "merge",
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/github-settings.yml",
+        ".github/dependabot.yml",
+        ".github/pull_request_template.md"
+      ]
+    },
+    {
+      "id": "agent-context",
+      "title": "Agent context and documentation",
+      "ownership": "merge",
+      "paths": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/skills/",
+        "docs/index.md",
+        "docs/architecture.md",
+        "docs/development-guide.md",
+        "docs/adoption-guide.md",
+        "docs/code-quality-gate.md",
+        "docs/decisions/"
+      ]
+    },
+    {
+      "id": "manifest",
+      "title": "The manifest itself",
+      "ownership": "merge",
+      "paths": ["infra/template-manifest.json"]
+    },
+    {
+      "id": "destination-owned",
+      "title": "Present in both repositories, content decided per project",
+      "ownership": "project",
+      "paths": [
+        ".github/CODEOWNERS",
+        "infra/policy/dependency-policy.json",
+        ".vscode/",
+        ".gitignore",
+        "README.md",
+        "LICENSE"
+      ]
+    }
+  ]
+}

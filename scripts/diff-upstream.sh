@@ -17,50 +17,25 @@ set -euo pipefail
 TEMPLATE_REMOTE="${TEMPLATE_REMOTE:-https://github.com/shunmd/node-starter.git}"
 REF="${1:-main}"
 
-# Files the template owns. Application code is never compared.
-TRACKED_PATHS=(
-  mise.toml
-  package.json
-  pnpm-lock.yaml
-  pnpm-workspace.yaml
-  tsconfig.json
-  eslint.config.js
-  prettier.config.js
-  vitest.config.ts
-  stryker.config.json
-  knip.jsonc
-  .dependency-cruiser.json
-  .jscpd.json
-  .editorconfig
-  .gitattributes
-  .prettierignore
-  .github/workflows/ci.yml
-  .github/workflows/github-settings.yml
-  .github/dependabot.yml
-  .github/pull_request_template.md
-  infra/github/README.md
-  infra/github/repository-settings.json
-  infra/github/rulesets/main.json
-  infra/github/environments/production.json
-  infra/github/secrets-manifest.json
-  scripts/check-dependencies.ts
-  scripts/check-toolchain-age.ts
-  scripts/check-workflows.ts
-  scripts/github-settings.ts
-  scripts/secret-scan.sh
-  scripts/lib/dependency-policy.ts
-  scripts/lib/toolchain-policy.ts
-  scripts/lib/workflow-policy.ts
-  AGENTS.md
-)
-
-# Deliberately not tracked: .github/CODEOWNERS and
-# infra/policy/dependency-policy.json. Both are per-project by nature -- the
-# owners are your team, and the accepted exceptions are your risk decisions --
-# so a diff against the template's copy would only ever be noise.
+# The files the template owns come from infra/template-manifest.json, which
+# `pnpm check:manifest` keeps in step with the repository. This script used to
+# carry its own copy of the list; the copy went stale, and every adoption made
+# from it silently omitted the files that had been added since.
+#
+# Paths whose ownership is "project" are excluded by --list: the owners in
+# CODEOWNERS and the accepted exceptions in infra/policy/dependency-policy.json
+# are your decisions, so a diff against the template's copy would only be noise.
 
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: not inside a git repository" >&2
+  exit 1
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+MANIFEST="${REPO_ROOT}/infra/template-manifest.json"
+
+if [ ! -f "${MANIFEST}" ]; then
+  echo "error: ${MANIFEST} not found; this repository has not adopted the template inventory" >&2
   exit 1
 fi
 
@@ -74,10 +49,40 @@ git fetch --quiet template "${REF}"
 echo "Comparing against template/${REF}"
 echo
 
+# The local manifest alone is not enough: a repository that adopted an older
+# template version has a manifest that predates any file the template added
+# since, so that file would never appear as missing -- the exact gap this
+# script exists to close. Union in the upstream manifest's own list so a file
+# neither side's history agrees to look for still surfaces here.
+UPSTREAM_MANIFEST="$(mktemp)"
+trap 'rm -f "${UPSTREAM_MANIFEST}"' EXIT
+UPSTREAM_PATHS=""
+if git cat-file -e "FETCH_HEAD:infra/template-manifest.json" 2>/dev/null; then
+  git show "FETCH_HEAD:infra/template-manifest.json" >"${UPSTREAM_MANIFEST}"
+  UPSTREAM_PATHS="$(node "${REPO_ROOT}/scripts/check-template-manifest.ts" --list --manifest "${UPSTREAM_MANIFEST}")"
+fi
+LOCAL_PATHS="$(node "${REPO_ROOT}/scripts/check-template-manifest.ts" --list)"
+
+TRACKED_PATHS=()
+while IFS= read -r line; do
+  [ -n "${line}" ] && TRACKED_PATHS+=("${line}")
+done < <(printf '%s\n%s\n' "${LOCAL_PATHS}" "${UPSTREAM_PATHS}" | sort -u)
+
 status=0
 for file in "${TRACKED_PATHS[@]}"; do
-  if ! git cat-file -e "FETCH_HEAD:${file}" 2>/dev/null; then
+  # A manifest entry ending in / covers a whole directory, so presence is
+  # tested with ls-tree rather than cat-file, which only resolves blobs.
+  if [ -z "$(git ls-tree -r --name-only FETCH_HEAD -- "${file%/}" 2>/dev/null)" ]; then
     echo "--- ${file}: not present upstream (local addition)"
+    continue
+  fi
+  # A path the union above found only in the upstream manifest -- the case an
+  # older adoption's own manifest could never have listed -- and that the
+  # working tree does not have at all is called out on its own, rather than
+  # left to show up as an unlabeled full-file deletion in the diff below.
+  if [ ! -e "${REPO_ROOT}/${file%/}" ]; then
+    echo "+++ ${file}: not present locally (upstream addition) -- copy it from the template"
+    status=1
     continue
   fi
   if ! git diff --quiet FETCH_HEAD -- "${file}" 2>/dev/null; then
