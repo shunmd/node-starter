@@ -18,6 +18,26 @@ pnpm test:mutation   # required mutation gate; same command as the CI mutation j
 first failure. `pnpm check` is a compatibility alias. Individual steps exist as
 separate scripts when you want a faster loop.
 
+### Targeted validation during edits
+
+Do not run the repository-wide gate after every small edit. For changed source
+or script files, use the smallest applicable checks first:
+
+```sh
+pnpm exec prettier --check path/to/changed-file.ts
+pnpm exec eslint path/to/changed-file.ts
+pnpm typecheck
+pnpm test -- --changed
+git diff --check
+```
+
+Pass all formatter-supported changed files to Prettier and all lintable changed
+files to ESLint when more than one file is in scope. Use `git diff --check` for
+files such as `.gitignore` and `.prettierignore` that have no Prettier parser.
+These checks shorten the edit loop; they do not replace the final `pnpm verify`.
+Changes to quality, toolchain, workflow or dependency policy files require the
+full gate because targeted checks cannot cover their policy impact.
+
 There is intentionally no `ci` script. CI runs `pnpm verify` and
 `pnpm test:mutation` as separate required jobs, so each job uses the same command
 developers run locally.

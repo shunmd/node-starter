@@ -14,6 +14,17 @@ pnpm fix      # mechanical formatting and lint fixes
 Use `package.json` for the complete script list and `docs/index.md` to find
 task-specific documentation.
 
+# Validation
+
+- During implementation, prefer targeted checks: format and lint applicable
+  changed files, run `pnpm typecheck`, run `pnpm test -- --changed`, and run
+  `git diff --check`. Do not pass non-source files such as `.gitignore` to
+  Prettier.
+- Run the full `pnpm verify` before declaring a change complete. Changes to
+  quality, toolchain, workflow or dependency policy files require the full gate
+  even when a targeted check passes.
+- Run `pnpm test:mutation` at the completion gate or in CI, not after every edit.
+
 # Repository guidance
 
 - Treat code, configuration, tests, and CI as the source of truth for rules

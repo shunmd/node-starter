@@ -162,3 +162,6 @@ mise.local.lock
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Local coding-agent worktrees are nested generated repositories.
+.claude/worktrees/
