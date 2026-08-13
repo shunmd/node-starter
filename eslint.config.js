@@ -27,7 +27,14 @@ import tseslint from 'typescript-eslint';
  */
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.mise/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      '.mise/**',
+      // Local coding-agent worktrees are nested generated repositories.
+      '.claude/worktrees/**',
+    ],
   },
 
   // --- Base ----------------------------------------------------------------

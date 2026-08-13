@@ -1,6 +1,7 @@
 # Generated output
 dist/
 coverage/
+.claude/worktrees/
 
 # Lockfiles are written by their own tools; reformatting them creates noise and
 # can break checksum-sensitive parsing.
