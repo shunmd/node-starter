@@ -73,15 +73,41 @@ After the shared files are merged:
 1. Keep application code and tests in the project's existing layout, or update
    `vitest.config.ts`, `knip.jsonc`, and `.dependency-cruiser.json` together if
    the layout differs.
-2. Remove the template's placeholder `src/index.ts` and test only after the
+2. Declare the entry points a framework loads by convention. Next.js `app/` and
+   `pages/`, SvelteKit `routes/` and Nuxt `pages/` are reached by a router
+   rather than by an import, and three checks read that as a defect:
+   - `knip.jsonc` reports them as unused files. Add the framework's entry
+     patterns, or enable Knip's plugin for it. Ignoring the reported paths
+     instead also stops the check finding genuinely dead files beside them.
+   - `.dependency-cruiser.json` reports them as orphan modules. Add them to the
+     `no-orphans` rule's `pathNot`.
+   - `vitest.config.ts` sets `environment: 'node'`, which has no DOM. Component
+     tests need `jsdom` or `happy-dom`, and the component file extensions added
+     to `include`.
+
+   `.jscpd.json` names `src` and `scripts` directly, so it measures nothing in
+   a framework's source directory until that path is added.
+
+3. Remove the template's placeholder `src/index.ts` and test only after the
    destination entrypoints and tests are covered by the new configuration.
-3. Set Stryker's `mutate` scope to real production code. Do not claim a
+4. Set Stryker's `mutate` scope to real production code. Do not claim a
    mutation score for files that are excluded from the scope without recording
    the reason.
-4. Add the project's build, integration, E2E, or deployment checks only when
-   the project has the application and commands those checks exercise.
-5. Keep `AGENTS.md` limited to durable rules that tools cannot enforce. Put
+5. Add the project's build, integration, E2E, or deployment checks only when
+   the project has the application and commands those checks exercise. A
+   framework's own build is one of these: it is the step that fails on a broken
+   route or a bad server/client boundary, none of which `pnpm typecheck` sees.
+6. Keep `AGENTS.md` limited to durable rules that tools cannot enforce. Put
    current procedures in the appropriate document routed from `docs/index.md`.
+   Update `docs/architecture.md` where the destination contradicts it: it
+   describes a repository with no application layers, web framework, cloud
+   integration or build output, and left unedited it routes agents to a
+   description of a project that no longer exists.
+
+The steps above name the decisions without making them, because the answers
+depend on the destination. For Next.js, where those decisions recur in the same
+order every time, `.claude/skills/adopt-nextjs-quality-gate/` carries them as a
+worked procedure.
 
 ## 5. Install and validate
 
@@ -138,7 +164,10 @@ application repositories are expected to diverge from the template.
 - [ ] Toolchain, package manager, and dependency policy are intentional.
 - [ ] All quality tools point at the destination project's real source and test
       layout.
+- [ ] Convention-loaded entry points are declared to Knip and
+      dependency-cruiser rather than ignored.
 - [ ] Existing CI and deployment jobs remain intact.
+- [ ] `docs/architecture.md` describes the destination's actual shape.
 - [ ] `pnpm verify` passes.
 - [ ] `pnpm test:mutation` passes with the configured scope.
 - [ ] `pnpm install --frozen-lockfile` passes on a clean dependency state.

@@ -26,7 +26,7 @@
     },
     {
       "name": "no-orphans",
-      "comment": "A module nothing imports and nothing runs is dead weight that still has to be reviewed, type-checked and kept compiling. Knip finds unused files it can trace from an entry point; this catches the ones that are reachable from nowhere at all. Type declarations and config files are legitimately orphaned.",
+      "comment": "A module nothing imports and nothing runs is dead weight that still has to be reviewed, type-checked and kept compiling. Knip finds unused files it can trace from an entry point; this catches the ones that are reachable from nowhere at all. Type declarations and config files are legitimately orphaned. So is every file a framework loads by convention rather than by import -- a Next.js app/ route, a SvelteKit routes/ file -- because nothing in the source imports it and the rule cannot see the router that does. Declare those paths in pathNot below; switching the rule off instead loses the check for the code that has no framework loading it.",
       "severity": "error",
       "from": {
         "orphan": true,

@@ -101,7 +101,7 @@ jobs:
           # issue template added later is enforcement-layer code too, and a list
           # that has to be extended for each new file is a list that will be out
           # of date the first time someone forgets.
-          protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.editorconfig|\.gitattributes|\.github/|infra/|scripts/|AGENTS\.md|CLAUDE\.md)'
+          protected_paths='^(package\.json|pnpm-lock\.yaml|eslint\.config\.js|prettier\.config\.js|\.prettierignore|pnpm-workspace\.yaml|mise\.toml|mise\.lock|tsconfig\.json|vitest\.config\.ts|stryker\.config\.json|knip\.jsonc|\.dependency-cruiser\.json|\.jscpd\.json|\.editorconfig|\.gitattributes|\.github/|infra/|scripts/|AGENTS\.md|CLAUDE\.md|\.claude/)'
           changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -E "${protected_paths}" || true)"
           marker='<!-- node-starter-protected-file-notice -->'
           comments_url="https://api.github.com/repos/${REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100"
