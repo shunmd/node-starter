@@ -82,6 +82,86 @@ policy question in this repository that a `= 0` gate cannot express.
 (`pnpm check:workflows` enforces this), and the sha has to be read from the
 upstream repository at the version being adopted.
 
+### Deepen the CI execution contract beyond "the job exists"
+
+**What:** extend `checkCiWorkflowContract` in `scripts/lib/gate-contract-ci.ts`
+(added alongside the Gate Contract Test) so it also rejects: a required job
+gated by an `if:` expression referencing something other than the event
+itself, a `needs:` chain that can leave a required job unreachable, a required
+job's steps moved into a second workflow file the ruleset does not name, and a
+`required_status_checks` context whose name does not match any job's
+effective status-check name (the job's `name:` field, not just its key). It
+should also confirm `scripts/github-settings.ts --check` runs in CI as exactly
+`--check` (optionally `--check --remote`), never `--apply` outside the
+protected `workflow_dispatch` path.
+
+**Why:** the Gate Contract Test in `scripts/lib/gate-contract.ts` and
+`scripts/lib/gate-contract-ci.ts` proves the `check` and `mutation` jobs exist,
+are not short-circuited by `if: false` or `continue-on-error: true`, and are
+not excluded by a `paths` filter on the `pull_request` trigger. It does not yet
+prove they always _run to completion on the path that matters_ -- a `needs:`
+graph that silently strands a job, or a job quietly moved to a workflow the
+ruleset was never updated to watch, would still pass today's contract.
+
+**Cost:** meaningfully more complex than the existing check: reasoning about
+`needs:` reachability and cross-workflow job movement needs a small graph
+walk, not a field read, and is easy to get subtly wrong in a way that either
+misses real weakenings or false-positives on legitimate workflow shapes.
+
+### Ratchet quality thresholds and scope against the PR's base branch
+
+**What:** a `gate-ratchet` check that fetches the pull request's base-branch
+version of `package.json`, `vitest.config.ts`, `stryker.config.json`,
+`eslint.config.js`, `.dependency-cruiser.json` and
+`infra/github/rulesets/main.json` (via `git show <base-sha>:<path>`) and fails
+if the head version lowers a coverage or mutation threshold, narrows the
+`src/**` / `scripts/lib/**` coverage or mutation scope, downgrades an ESLint
+rule from `error`, downgrades a dependency-cruiser rule's severity, removes a
+required status check, or removes a script from `pnpm check`'s chain --
+independent of whether the resulting configuration still satisfies the Gate
+Contract Test's fixed floor.
+
+**Why:** the Gate Contract Test enforces a fixed floor (thresholds `>= 80`,
+specific rules present at `error`). It cannot by itself distinguish "was
+already at 85% and a PR drops it to 81%" from "has always been 81%" -- both
+pass the same fixed check. A ratchet is the mechanism that turns "does not
+violate the floor" into "does not move backward", which is what
+`docs/code-quality-gate.md` section 1.2 asks for but nothing currently
+verifies mechanically.
+
+**Cost:** needs the base SHA, which means it only runs meaningfully in CI (or
+locally against a real base ref), not as a plain `pnpm verify` step run from a
+detached worktree. Comparing "scope" rather than just thresholds means parsing
+the same glob lists the Gate Contract Test already parses, twice, once per
+ref -- worth sharing code with `scripts/lib/gate-contract.ts` rather than
+duplicating the extraction logic.
+
+### Remove the ruleset's admin bypass and add a required `gate-integrity` job
+
+**What:** two related, security-relevant changes that should land together and
+be reviewed as GitHub-settings changes, not as ordinary code: (1) remove the
+`bypass_actors` entry from `infra/github/rulesets/main.json`, so no
+`RepositoryRole` can merge into `main` around the required checks even inside
+a pull request; (2) add a `gate-integrity` job to `.github/workflows/ci.yml`
+running `pnpm check:gate-contract` (and, once it exists, the ratchet check
+above), and require it in `infra/github/rulesets/main.json` alongside `check`
+and `mutation`.
+
+**Why:** today `pnpm check:gate-contract` only runs as one step inside the
+`check` job, and the ruleset still grants a bypass actor the ability to merge
+without any required check passing at all. Both gaps mean the enforcement
+described in this backlog's other entries, and in
+`scripts/lib/gate-contract.ts` itself, can be routed around rather than
+defeated on its own terms -- which is a materially different risk from a check
+that simply has not been written yet.
+
+**Cost:** removing the bypass actor removes the repository owner's own escape
+hatch for a genuinely broken gate (a bad required check that cannot be fixed
+through the normal PR path); it should not be done without a second way to
+recover, such as `enforcement: evaluate` as a documented manual fallback. This
+is exactly the kind of decision `docs/architecture.md` reserves for a human:
+"Proposed enforcement changes ... Human applies accepted proposals."
+
 ### Decompose `scripts/github-settings.ts`
 
 **What:** move its validation, normalisation and drift-comparison functions into
