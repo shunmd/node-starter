@@ -109,7 +109,10 @@ The fast gate includes these checks beyond formatting, linting and types:
   `src/**` and `scripts/lib/**`. Increase it when the generated project has
   measured business logic; do not add meaningless tests to satisfy a number.
 - `pnpm test:mutation` runs StrykerJS separately from `pnpm verify`. It requires
-  a mutation score of at least 80% and fails below 80%.
+  a mutation score of at least 80% and fails below 80%. Stryker stores an
+  incremental report under `reports/`; CI caches that report between commits,
+  so unchanged mutants are reused while a cache miss still performs a full
+  mutation run.
 
 Mutation testing is intentionally a separate, heavy check and is not part of
 `pnpm verify`. StrykerJS is configured with the Vitest runner. Its Babel
