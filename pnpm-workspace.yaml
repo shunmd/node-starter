@@ -56,6 +56,19 @@ trustPolicyExclude:
 # the mise pin, this means exactly one pnpm version can ever run in this repo.
 pmOnFail: error
 
+# --- Dependency overrides -----------------------------------------------------
+
+# Forces a version for a transitive dependency regardless of what its parent's
+# own range would otherwise resolve. Each entry is a deliberate decision to
+# take a fix ahead of the packages that depend on it publishing a new range.
+# Remove the entry once every path to the package resolves the fixed version on
+# its own.
+overrides:
+  # GHSA-2v37-7h3g-55p8: nanoid's custom generators can loop indefinitely when
+  # size is zero. Reached via postcss (a build-time Vite/Vitest dependency);
+  # 3.3.18 is the patched release.
+  nanoid: ^3.3.18
+
 # --- Install-time script execution -------------------------------------------
 
 # Dependency lifecycle scripts (postinstall etc.) are the primary payload
