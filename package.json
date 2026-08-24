@@ -51,7 +51,7 @@
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "^24.13.3",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vitest/eslint-plugin": "^1.6.27",
     "dependency-cruiser": "18.2.0",
     "eslint": "^10.8.1",
@@ -62,12 +62,12 @@
     "eslint-plugin-sonarjs": "4.2.0",
     "fast-check": "^4.9.0",
     "globals": "^17.11.0",
-    "jscpd": "^5.0.15",
+    "jscpd": "^5.0.16",
     "knip": "6.32.2",
     "prettier": "^3.9.6",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "yaml": "^2.9.0"
   }
 }
