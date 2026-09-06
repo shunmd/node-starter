@@ -1,7 +1,7 @@
 /**
  * File I/O for infra/github/: reading the desired-state JSON and the CI
  * workflow it must be consistent with. Structural validation lives in
- * ../lib/github-settings-policy.ts.
+ * ../lib/github-settings-approval-policy.ts.
  */
 
 import { readFile, readdir } from 'node:fs/promises';

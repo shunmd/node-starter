@@ -32,7 +32,11 @@ export default defineConfig({
 
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts', 'scripts/lib/**/*.ts'],
+      include: [
+        'src/**/*.ts',
+        'scripts/lib/**/*.ts',
+        'scripts/github-settings/**/*.ts',
+      ],
       // Every file matching `include` appears in the report whether or not a
       // test imports it. An entirely untested module has to show up at 0%: a
       // per-file threshold cannot fail on a file that is missing from the

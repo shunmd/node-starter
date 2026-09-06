@@ -13,14 +13,14 @@ ADR bodies.
 | [`0003-release-cooldown.md`](0003-release-cooldown.md)                                         | Dependencies follow a five-day release cooldown and trust policy.                       |
 | [`0005-bounded-ai-assisted-development.md`](0005-bounded-ai-assisted-development.md)           | AI-assisted changes use bounded tasks and independent gates.                            |
 | [`0006-navigation-first-ai-context.md`](0006-navigation-first-ai-context.md)                   | Agent context is minimal at startup and routed to on-demand documents.                  |
-| [`0007-protected-file-review-notice.md`](0007-protected-file-review-notice.md)                 | Protected-file changes are reported for review without blocking valid PRs.              |
 | [`0008-no-required-human-approval-solo-repo.md`](0008-no-required-human-approval-solo-repo.md) | No required approval and no admin bypass is a solo-repo policy, with a revisit trigger. |
+| [`0009-protected-file-review-notice.md`](0009-protected-file-review-notice.md)                 | Protected-file changes are reported for review without blocking valid PRs.              |
 
 ## Superseded
 
 | ADR                                                                                        | Replaced by                                                                    |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | [`0004-ai-asset-layout.md`](0004-ai-asset-layout.md)                                       | [`0006-navigation-first-ai-context.md`](0006-navigation-first-ai-context.md)   |
-| [`0007-machine-verifiable-review-boundary.md`](0007-machine-verifiable-review-boundary.md) | [`0007-protected-file-review-notice.md`](0007-protected-file-review-notice.md) |
+| [`0007-machine-verifiable-review-boundary.md`](0007-machine-verifiable-review-boundary.md) | [`0009-protected-file-review-notice.md`](0009-protected-file-review-notice.md) |
 
 `0000-adr-template.md` is a writing template, not an architectural decision.

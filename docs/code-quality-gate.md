@@ -279,8 +279,9 @@ pnpm test:coverage
 差分そのものを測っているわけではないため、`Coverage on New Code`は
 「Active」ではなく「Approximated」と表記する。
 
-Coverageの対象は`src/**`と`scripts/lib/**`である。`scripts/lib/**`を含める
-のは、そこに品質ゲート自身の判定ロジックがあるためで、未テストの
+Coverageの対象は`src/**`、`scripts/lib/**`、`scripts/github-settings/**`で
+ある。後の2つを含めるのは、そこに品質ゲート自身の判定ロジックと、
+リポジトリの保護設定に何を書き込むかを決めるI/O層があるためで、未テストの
 Enforcement Layerはゲートのないゲートである。`scripts/*.ts`は
 argv・I/O・exitのみを担うEntry Pointとして対象外とし、そこにロジックが
 逃げないようESLintで120行に制限する。
@@ -302,8 +303,8 @@ pnpm test:mutation
 
 Mutation Scoreは`>= 95%`を必須とし、StrykerJSの`break: 95`でコマンドをFAILに
 する。PRでは変更された本番コードだけを対象とし、該当ファイルがない場合は
-正常終了する。mainへのpushとスケジュール実行では`src/**`と`scripts/lib/**`の
-全体を対象とする。Enforcement Layer
+正常終了する。mainへのpushとスケジュール実行では`src/**`、`scripts/lib/**`、
+`scripts/github-settings/**`の全体を対象とする。Enforcement Layer
 のテストが「実行はしているが検出はしていない」状態を許さないため、品質
 ゲート自身のロジックもMutation Testingの対象とする。
 

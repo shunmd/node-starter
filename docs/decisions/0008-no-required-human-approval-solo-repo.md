@@ -5,7 +5,7 @@
 
 ## Context
 
-[`0007-protected-file-review-notice.md`](0007-protected-file-review-notice.md)
+[`0009-protected-file-review-notice.md`](0009-protected-file-review-notice.md)
 explains why a blocking, path-based review guard was replaced with an
 informational notice: the friction it added to metadata-only changes was
 larger than the benefit. That ADR argues from CI friction. It does not say,
@@ -54,7 +54,7 @@ same repository holds both `infra/github/rulesets/main.json` and the code in
 `scripts/` that checks it, so a change to one can, in principle, accompany a
 change to the other in the same pull request. `check`, `mutation` and
 `github-settings` all still have to pass, and
-`scripts/lib/github-settings-policy.ts` is itself covered and mutation-tested
+The `scripts/lib/github-settings-*.ts` modules are themselves covered and mutation-tested
 (see [ADR 5](0005-bounded-ai-assisted-development.md)), but this is not the
 same guarantee an external quality gate or a second human would provide. This
 residual risk is accepted for a solo repository and is the reason the next

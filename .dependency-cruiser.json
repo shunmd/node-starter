@@ -85,9 +85,9 @@
     },
     {
       "name": "no-lib-to-entry-point",
-      "comment": "scripts/lib/ holds the tested decision logic and scripts/*.ts are the argv-and-exit shells around it. The dependency runs one way: a library module that imports an entry point would execute that entry point's top-level main() as a side effect of being imported by a test.",
+      "comment": "scripts/lib/ and scripts/github-settings/ hold the tested logic and scripts/*.ts are the argv-and-exit shells around it. The dependency runs one way: a library module that imports an entry point would execute that entry point's top-level main() as a side effect of being imported by a test.",
       "severity": "error",
-      "from": { "path": "^scripts/lib/" },
+      "from": { "path": "^scripts/(lib|github-settings)/" },
       "to": { "path": "^scripts/[^/]+\\.ts$" }
     }
   ],

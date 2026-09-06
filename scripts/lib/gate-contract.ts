@@ -23,7 +23,14 @@ import {
 } from './gate-contract-ci.ts';
 
 const ERROR = 'error';
-const GATE_GLOBS = ['src/**/*.ts', 'scripts/lib/**/*.ts'] as const;
+const GATE_GLOBS = [
+  'src/**/*.ts',
+  'scripts/lib/**/*.ts',
+  // The GitHub settings I/O modules decide what is written to the repository's
+  // own protected settings. They were outside coverage and mutation scope
+  // while every other enforcement module was inside it.
+  'scripts/github-settings/**/*.ts',
+] as const;
 
 const REQUIRED_SCRIPTS = [
   'check',

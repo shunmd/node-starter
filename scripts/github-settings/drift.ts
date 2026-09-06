@@ -1,7 +1,7 @@
 /**
  * Compares the desired GitHub configuration against the live repository.
  * Comparison logic (normalization, diffing) lives in
- * ../lib/github-settings-policy.ts; this module only fetches and reports.
+ * ../lib/github-settings-normalize.ts; this module only fetches and reports.
  */
 
 import {
