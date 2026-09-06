@@ -1242,6 +1242,96 @@ describe('validateCiWorkflowContract', () => {
     expect(validateCiWorkflowContract(compliantCiWorkflow())).toStrictEqual([]);
   });
 
+  it('resolves a required status check by the job name, not the job key', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  settings:
+    name: github-settings
+    steps:
+      - run: node scripts/github-settings.ts --check
+`;
+    expect(validateCiWorkflowContract(source)).toStrictEqual([]);
+  });
+
+  it('rejects a job key that matches a required check but reports another name', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings:
+    name: settings
+    steps:
+      - run: node scripts/github-settings.ts --check
+`;
+    expect(validateCiWorkflowContract(source)).toContainEqual(
+      expect.stringContaining(
+        'must define a job reporting the github-settings status check',
+      ),
+    );
+  });
+
+  it('ignores a jobs entry that is not a mapping', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings: skipped
+`;
+    expect(validateCiWorkflowContract(source)).toContainEqual(
+      expect.stringContaining(
+        'must define a job reporting the github-settings status check',
+      ),
+    );
+  });
+
+  it('rejects a github-settings job whose steps are not a list', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings:
+    steps: none
+`;
+    expect(validateCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml job github-settings must run `node scripts/github-settings.ts --check`',
+    ]);
+  });
+
+  it('ignores a step that is not a command', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings:
+    steps:
+      - uses: actions/checkout@v7
+      - run: node scripts/github-settings.ts --check
+`;
+    expect(validateCiWorkflowContract(source)).toStrictEqual([]);
+  });
+
   it('rejects a workflow missing the github-settings job', () => {
     const source = `
 jobs:
@@ -1253,7 +1343,9 @@ jobs:
       - run: pnpm test:mutation
 `;
     expect(validateCiWorkflowContract(source)).toContainEqual(
-      expect.stringContaining('must define a github-settings job'),
+      expect.stringContaining(
+        'must define a job reporting the github-settings status check',
+      ),
     );
   });
 

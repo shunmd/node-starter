@@ -21,7 +21,7 @@
     }
   },
   "scripts": {
-    "check": "pnpm run check:toolchain && pnpm run check:workflows && pnpm run check:gate-contract && pnpm run check:manifest && pnpm run check:scope && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run deadcode && pnpm run architecture && pnpm run duplication && pnpm run secret:scan && pnpm run check:deps && pnpm run test:coverage",
+    "check": "pnpm run check:toolchain && pnpm run check:workflows && pnpm run check:gate-contract && pnpm run check:manifest && pnpm run check:scope && pnpm run github:settings && pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run deadcode && pnpm run architecture && pnpm run duplication && pnpm run secret:scan && pnpm run check:deps && pnpm run test:coverage",
     "check:toolchain": "node scripts/check-toolchain-age.ts",
     "check:workflows": "node scripts/check-workflows.ts",
     "check:gate-contract": "node scripts/check-gate-contract.ts",

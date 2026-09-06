@@ -8,6 +8,7 @@
   "mutate": [
     "src/**/*.ts",
     "scripts/lib/**/*.ts",
+    "scripts/github-settings/**/*.ts",
     "!**/*.test.ts",
     "!**/*.spec.ts"
   ],

@@ -4,7 +4,7 @@ Date: 2026-08-12
 
 ## Status
 
-Accepted
+Superseded by [`0009-protected-file-review-notice.md`](0009-protected-file-review-notice.md)
 
 ## Context
 

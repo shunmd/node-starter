@@ -1,7 +1,7 @@
 /**
  * CLI entry point for the GitHub settings tool: argv parsing and
  * orchestration only. Validation, normalization and drift-comparison logic
- * live in scripts/lib/github-settings-policy.ts (tested, mutation-scored);
+ * live in the tested, mutation-scored scripts/lib/github-settings-*.ts modules;
  * file and network I/O live in scripts/github-settings/.
  */
 

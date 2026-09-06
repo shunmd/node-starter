@@ -1,4 +1,4 @@
-# 7. Protected-file changes are reported for review
+# 9. Protected-file changes are reported for review
 
 - **Status:** Accepted
 - **Date:** 2026-08-12

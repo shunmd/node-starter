@@ -62,7 +62,7 @@ function validVitestConfigSource(
   return `export default {
   test: {
     coverage: {
-      include: ['src/**/*.ts', 'scripts/lib/**/*.ts'],
+      include: ['src/**/*.ts', 'scripts/lib/**/*.ts', 'scripts/github-settings/**/*.ts'],
       thresholds: {
         perFile: true,
         lines: ${String(lines)},
@@ -77,7 +77,12 @@ function validVitestConfigSource(
 
 function validStrykerConfig(breakThreshold = 95): unknown {
   return {
-    mutate: ['src/**/*.ts', 'scripts/lib/**/*.ts', '!**/*.test.ts'],
+    mutate: [
+      'src/**/*.ts',
+      'scripts/lib/**/*.ts',
+      'scripts/github-settings/**/*.ts',
+      '!**/*.test.ts',
+    ],
     thresholds: { high: 95, low: 95, break: breakThreshold },
   };
 }
@@ -118,10 +123,14 @@ function validCiWorkflowSource(jobsYaml?: string): string {
     name: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm verify
   mutation:
     name: mutation
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
 `;
   return `name: CI
 on:
@@ -266,7 +275,7 @@ describe('checkCoverageContract', () => {
     const source = `export default {
   test: {
     coverage: {
-      include: ['src/**/*.ts', 'scripts/lib/**/*.ts'],
+      include: ['src/**/*.ts', 'scripts/lib/**/*.ts', 'scripts/github-settings/**/*.ts'],
     },
   },
 };`;
@@ -306,7 +315,11 @@ describe('checkMutationContract', () => {
     expect(
       checkMutationContract({
         ...(config as Record<string, unknown>),
-        mutate: ['src/**/*.ts', '!**/*.test.ts'],
+        mutate: [
+          'src/**/*.ts',
+          'scripts/github-settings/**/*.ts',
+          '!**/*.test.ts',
+        ],
       }),
     ).toStrictEqual([
       expect.stringContaining('mutate is missing "scripts/lib/**/*.ts"'),
@@ -333,7 +346,11 @@ describe('checkMutationContract', () => {
   it('rejects a missing break threshold', () => {
     expect(
       checkMutationContract({
-        mutate: ['src/**/*.ts', 'scripts/lib/**/*.ts'],
+        mutate: [
+          'src/**/*.ts',
+          'scripts/lib/**/*.ts',
+          'scripts/github-settings/**/*.ts',
+        ],
         thresholds: {},
       }),
     ).toStrictEqual([
@@ -450,11 +467,77 @@ describe('checkCiWorkflowContract', () => {
     name: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm verify
 `,
     );
     expect(checkCiWorkflowContract(source)).toStrictEqual([
       expect.stringContaining('missing the required "mutation" job'),
     ]);
+  });
+
+  it('rejects a required job that no longer runs its gate command', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "nothing to do"
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      expect.stringContaining(
+        'job "check" no longer runs `pnpm verify`, so the job could report success',
+      ),
+    ]);
+  });
+
+  it('accepts a mutation command wrapped in a longer shell script', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: |
+          set -euo pipefail
+          pnpm test:mutation --mutate src/index.ts
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([]);
+  });
+
+  it('looks past steps that are actions rather than commands', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([]);
   });
 
   it('rejects continue-on-error: true on a required job', () => {
@@ -463,11 +546,15 @@ describe('checkCiWorkflowContract', () => {
     name: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm verify
     continue-on-error: true
   mutation:
     name: mutation
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
 `,
     );
     expect(checkCiWorkflowContract(source)).toStrictEqual([
@@ -483,11 +570,15 @@ describe('checkCiWorkflowContract', () => {
     name: check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm verify
     if: false
   mutation:
     name: mutation
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
 `,
     );
     expect(checkCiWorkflowContract(source)).toStrictEqual([
@@ -568,7 +659,56 @@ describe('checkRequiredStatusChecksMatchJobs', () => {
     );
     expect(problems).toStrictEqual([
       expect.stringContaining(
-        'does not require the "mutation" status check that ci.yml defines',
+        'does not require the "mutation" status check that ci.yml\'s "mutation" job reports',
+      ),
+    ]);
+  });
+
+  it('matches a required status check against the job name, not the job key', () => {
+    const source = validCiWorkflowSource(
+      `  quality:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(
+      checkRequiredStatusChecksMatchJobs(validMainRulesetConfig(), source),
+    ).toStrictEqual([]);
+  });
+
+  it('rejects a job whose name no longer reports the required status check', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(
+      checkRequiredStatusChecksMatchJobs(validMainRulesetConfig(), source),
+    ).toStrictEqual([
+      expect.stringContaining(
+        'does not require the "quality" status check that ci.yml\'s "check" job reports',
+      ),
+      expect.stringContaining(
+        'requires status check "check", but no ci.yml job reports that name',
       ),
     ]);
   });
@@ -593,7 +733,7 @@ describe('checkRequiredStatusChecksMatchJobs', () => {
     );
     expect(problems).toStrictEqual([
       expect.stringContaining(
-        'requires status check "renamed-job", but ci.yml has no job with that name',
+        'requires status check "renamed-job", but no ci.yml job reports that name',
       ),
     ]);
   });
@@ -745,11 +885,242 @@ describe('checkRequiredStatusChecksMatchJobs', () => {
     );
     expect(problems).toStrictEqual([
       expect.stringContaining(
-        'requires status check "check", but ci.yml has no job with that name',
+        'requires status check "check", but no ci.yml job reports that name',
       ),
       expect.stringContaining(
-        'requires status check "mutation", but ci.yml has no job with that name',
+        'requires status check "mutation", but no ci.yml job reports that name',
       ),
     ]);
+  });
+});
+
+describe('checkCiWorkflowContract details', () => {
+  it('rejects an empty job name as reporting nothing', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(
+      checkRequiredStatusChecksMatchJobs(validMainRulesetConfig(), source),
+    ).toStrictEqual([]);
+  });
+
+  it('rejects a mutation job that stopped running Stryker', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo skipped
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml job "mutation" no longer runs `pnpm test:mutation`, so the job ' +
+        'could report success without running the gate.',
+    ]);
+  });
+
+  it('rejects a job whose steps are not a list', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps: none
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      expect.stringContaining('job "check" no longer runs `pnpm verify`'),
+    ]);
+  });
+
+  it('reports the exact message for a disabled job', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml job "check" is disabled with if: false.',
+    ]);
+  });
+
+  it('reports the exact message for a missing job', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm verify
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml is missing the required "mutation" job.',
+    ]);
+  });
+
+  it('reports the exact message for a path-filtered pull_request trigger', () => {
+    const source = validCiWorkflowSource().replace(
+      '  pull_request:\n    types: [opened, synchronize, reopened]\n',
+      '  pull_request:\n    paths: [src/**]\n',
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml restricts the pull_request trigger with paths/paths-ignore, so a ' +
+        'change outside that filter would merge without the required check and ' +
+        'mutation jobs running.',
+    ]);
+  });
+
+  it('reads the trigger block when YAML parsed the `on` key as true', () => {
+    const source = `name: CI
+true:
+  pull_request:
+    paths: [src/**]
+jobs:
+  check:
+    name: check
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    steps:
+      - run: pnpm test:mutation
+`;
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      expect.stringContaining('restricts the pull_request trigger'),
+    ]);
+  });
+
+  it('ignores a required status check entry with no string context', () => {
+    const problems = checkRequiredStatusChecksMatchJobs(
+      {
+        rules: [
+          {
+            type: 'required_status_checks',
+            parameters: {
+              required_status_checks: [
+                'check',
+                { context: 'check' },
+                { context: 'mutation' },
+              ],
+            },
+          },
+        ],
+      },
+      validCiWorkflowSource(),
+    );
+    expect(problems).toStrictEqual([]);
+  });
+});
+
+describe('checkCiWorkflowContract edge cases', () => {
+  it('treats the quoted string "false" as a disabled job', () => {
+    const source = validCiWorkflowSource(
+      `  check:
+    name: check
+    if: 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm verify
+  mutation:
+    name: mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: pnpm test:mutation
+`,
+    );
+    expect(checkCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml job "check" is disabled with if: false.',
+    ]);
+  });
+
+  it('reports every required check when the ruleset is not an object', () => {
+    expect(
+      checkRequiredStatusChecksMatchJobs('main', validCiWorkflowSource()),
+    ).toStrictEqual([
+      expect.stringContaining('does not require the "check" status check'),
+      expect.stringContaining('does not require the "mutation" status check'),
+    ]);
+  });
+
+  it('reports every required check when the ruleset has no rules array', () => {
+    expect(
+      checkRequiredStatusChecksMatchJobs(
+        { rules: 'none' },
+        validCiWorkflowSource(),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it('skips a rule that is not a required_status_checks rule', () => {
+    expect(
+      checkRequiredStatusChecksMatchJobs(
+        {
+          rules: [
+            'deletion',
+            { type: 'pull_request' },
+            {
+              type: 'required_status_checks',
+              parameters: {
+                required_status_checks: [
+                  { context: 'check' },
+                  { context: 'mutation' },
+                ],
+              },
+            },
+          ],
+        },
+        validCiWorkflowSource(),
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it('reports a required check entry whose context is not a string', () => {
+    expect(
+      checkRequiredStatusChecksMatchJobs(
+        {
+          rules: [
+            {
+              type: 'required_status_checks',
+              parameters: {
+                required_status_checks: [
+                  { context: 'check' },
+                  { context: 'mutation' },
+                  { context: 7 },
+                ],
+              },
+            },
+          ],
+        },
+        validCiWorkflowSource(),
+      ),
+    ).toStrictEqual([]);
   });
 });

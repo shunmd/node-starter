@@ -44,16 +44,18 @@ policy paragraph.
 `scripts/` is split by testability, because the scripts are what decides
 whether everything else passes, and an untested gate is not a gate.
 
-| Layer          | Contents                                    | Verified by                            |
-| -------------- | ------------------------------------------- | -------------------------------------- |
-| `scripts/lib/` | Every pass/fail decision, as pure functions | Per-file coverage and mutation testing |
-| `scripts/*.ts` | argv, file and network I/O, printing, exit  | Running them in `pnpm verify` and CI   |
+| Layer                      | Contents                                     | Verified by                            |
+| -------------------------- | -------------------------------------------- | -------------------------------------- |
+| `scripts/lib/`             | Every pass/fail decision, as pure functions  | Per-file coverage and mutation testing |
+| `scripts/github-settings/` | The file and network I/O behind those checks | Per-file coverage and mutation testing |
+| `scripts/*.ts`             | argv, printing, exit                         | Running them in `pnpm verify` and CI   |
 
 The dependency runs one way -- `.dependency-cruiser.json` forbids a library
 module from importing an entry point, since importing one would execute its
 top-level `main()`. ESLint caps the entry points at 120 lines so logic cannot
 migrate there to escape the coverage scope. `scripts/github-settings.ts` is a
-thin entry point over `scripts/github-settings/` (file and network I/O) and
+thin entry point over `scripts/github-settings/` (file and network I/O, also
+covered and mutation-tested) and
 `scripts/lib/github-settings-*.ts` (validation, normalization, drift and
 CI-contract decisions -- covered and mutation-tested like every other
 `scripts/lib/` module).

@@ -17,23 +17,44 @@ import {
   requiredMainStatusChecks,
 } from './github-settings-types.ts';
 
-function jobSteps(document: unknown, job: string): readonly unknown[] {
+/**
+ * Finds the job that reports a given status-check context. GitHub reports a
+ * job under its `name:` when it has one, so a ruleset context is matched
+ * against that first and against the job key only as the fallback -- a
+ * renamed job would otherwise leave `main` requiring a check nothing reports.
+ */
+function findJobReporting(
+  document: unknown,
+  context: string,
+): Record<string, unknown> | undefined {
   if (!isRecord(document) || !isRecord(document['jobs'])) {
+    return undefined;
+  }
+  const jobs = Object.entries(document['jobs']).filter(
+    (entry): entry is [string, Record<string, unknown>] => isRecord(entry[1]),
+  );
+  return (
+    jobs.find(([, job]) => job['name'] === context)?.[1] ??
+    jobs.find(
+      ([jobKey, job]) => jobKey === context && !isString(job['name']),
+    )?.[1]
+  );
+}
+
+function jobSteps(document: unknown, context: string): readonly unknown[] {
+  const job = findJobReporting(document, context);
+  if (job === undefined || !isUnknownArray(job['steps'])) {
     return [];
   }
-  const jobValue = document['jobs'][job];
-  if (!isRecord(jobValue) || !isUnknownArray(jobValue['steps'])) {
-    return [];
-  }
-  return jobValue['steps'];
+  return job['steps'];
 }
 
 function jobRunsCommand(
   document: unknown,
-  job: string,
+  context: string,
   command: string,
 ): boolean {
-  return jobSteps(document, job).some(
+  return jobSteps(document, context).some(
     (step) =>
       isRecord(step) && isString(step['run']) && step['run'].trim() === command,
   );
@@ -53,20 +74,20 @@ export function validateCiWorkflowContract(source: string): readonly string[] {
     return ['ci.yml must define a jobs map'];
   }
 
-  for (const job of requiredMainStatusChecks) {
-    if (!isRecord(document['jobs'][job])) {
+  for (const context of requiredMainStatusChecks) {
+    if (findJobReporting(document, context) === undefined) {
       errors.push(
-        `ci.yml must define a ${job} job required by rulesets/main.json`,
+        `ci.yml must define a job reporting the ${context} status check required by rulesets/main.json`,
       );
     }
   }
 
-  for (const [job, command] of Object.entries(ciWorkflowJobCommands)) {
+  for (const [context, command] of Object.entries(ciWorkflowJobCommands)) {
     if (
-      isRecord(document['jobs'][job]) &&
-      !jobRunsCommand(document, job, command)
+      findJobReporting(document, context) !== undefined &&
+      !jobRunsCommand(document, context, command)
     ) {
-      errors.push(`ci.yml job ${job} must run \`${command}\``);
+      errors.push(`ci.yml job ${context} must run \`${command}\``);
     }
   }
 

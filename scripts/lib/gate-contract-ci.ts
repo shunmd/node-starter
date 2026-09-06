@@ -17,6 +17,17 @@ const CHECK_JOB = 'check';
 const MUTATION_JOB = 'mutation';
 const REQUIRED_CI_JOBS = [CHECK_JOB, MUTATION_JOB] as const;
 
+/**
+ * The command each required job must still run. A job that exists, is enabled
+ * and reports its name is not evidence of anything if the step that did the
+ * work was deleted: the substring is matched against the job's `run` steps,
+ * because the mutation job wraps its command in a shell script.
+ */
+const REQUIRED_CI_JOB_COMMANDS: Readonly<Record<string, string>> = {
+  [CHECK_JOB]: 'pnpm verify',
+  [MUTATION_JOB]: 'pnpm test:mutation',
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -35,6 +46,29 @@ function jobsOf(workflow: Record<string, unknown>): Record<string, unknown> {
   return isRecord(workflow['jobs']) ? workflow['jobs'] : {};
 }
 
+/**
+ * The name GitHub reports a job under, which is what a ruleset's required
+ * status check matches. `name:` wins when present; the job key is only the
+ * fallback. Comparing contexts against job keys would pass a workflow whose
+ * `name:` was changed, leaving `main` waiting forever for a check nothing
+ * reports.
+ */
+function reportedName(job: unknown, jobKey: string): string {
+  return isRecord(job) && typeof job['name'] === 'string' && job['name'] !== ''
+    ? job['name']
+    : jobKey;
+}
+
+function runSteps(job: Record<string, unknown>): readonly string[] {
+  const steps = job['steps'];
+  if (!Array.isArray(steps)) {
+    return [];
+  }
+  return steps.flatMap((step) =>
+    isRecord(step) && typeof step['run'] === 'string' ? [step['run']] : [],
+  );
+}
+
 function checkRequiredJob(
   jobName: string,
   jobs: Record<string, unknown>,
@@ -50,6 +84,15 @@ function checkRequiredJob(
   if (job['continue-on-error'] === true) {
     problems.push(
       `ci.yml job "${jobName}" sets continue-on-error: true, so its failure would not fail the workflow.`,
+    );
+  }
+  const command = REQUIRED_CI_JOB_COMMANDS[jobName];
+  if (
+    command !== undefined &&
+    !runSteps(job).some((run) => run.includes(command))
+  ) {
+    problems.push(
+      `ci.yml job "${jobName}" no longer runs \`${command}\`, so the job could report success without running the gate.`,
     );
   }
   return problems;
@@ -122,16 +165,21 @@ export function checkRequiredStatusChecksMatchJobs(
   const contexts = requiredStatusContexts(mainRulesetConfig);
   const workflow = parseWorkflow(ciWorkflowSource);
   const jobs = workflow === undefined ? {} : jobsOf(workflow);
+  const reportedNames = Object.entries(jobs).map(([jobKey, job]) =>
+    reportedName(job, jobKey),
+  );
   return [
-    ...REQUIRED_CI_JOBS.filter((jobName) => !contexts.includes(jobName)).map(
-      (jobName) =>
-        `rulesets/main.json does not require the "${jobName}" status check that ci.yml defines.`,
+    ...REQUIRED_CI_JOBS.filter(
+      (jobKey) => !contexts.includes(reportedName(jobs[jobKey], jobKey)),
+    ).map(
+      (jobKey) =>
+        `rulesets/main.json does not require the "${reportedName(jobs[jobKey], jobKey)}" status check that ci.yml's "${jobKey}" job reports.`,
     ),
     ...contexts
-      .filter((context) => !(context in jobs))
+      .filter((context) => !reportedNames.includes(context))
       .map(
         (context) =>
-          `rulesets/main.json requires status check "${context}", but ci.yml has no job with that name.`,
+          `rulesets/main.json requires status check "${context}", but no ci.yml job reports that name.`,
       ),
   ];
 }

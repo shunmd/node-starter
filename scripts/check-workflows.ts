@@ -19,13 +19,33 @@ const githubRoot = path.resolve(
   '.github',
 );
 
+function isMissingDirectory(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  );
+}
+
 function isYaml(name: string): boolean {
   return name.endsWith('.yml') || name.endsWith('.yaml');
 }
 
 async function readWorkflows(): Promise<readonly PolicySource[]> {
   const directory = path.join(githubRoot, 'workflows');
-  const entries = await readdir(directory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error: unknown) {
+    // A repository with no .github/workflows has no workflow policy to break.
+    // Reporting that plainly beats an ENOENT stack trace from the gate, which
+    // is what an adopting repository saw before the first workflow was copied.
+    if (isMissingDirectory(error)) {
+      return [];
+    }
+    throw error;
+  }
   return Promise.all(
     entries
       .filter((entry) => entry.isFile() && isYaml(entry.name))
