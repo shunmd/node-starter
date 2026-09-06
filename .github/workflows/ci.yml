@@ -88,8 +88,12 @@ jobs:
           set -euo pipefail
 
           if [ -n "${BASE_SHA}" ]; then
-            changed="$(git diff --name-only --diff-filter=ACMR "${BASE_SHA}" "${GITHUB_SHA}" -- \
-              'src/**/*.ts' 'scripts/lib/**/*.ts' | \
+            # Filtered with grep rather than a git pathspec: git's `**` does
+            # not match a file directly inside the directory, so
+            # 'scripts/lib/**/*.ts' silently matched nothing and every pull
+            # request reported "no changed production files".
+            changed="$(git diff --name-only --diff-filter=ACMR "${BASE_SHA}" "${GITHUB_SHA}" | \
+              grep -E '^(src|scripts/lib|scripts/github-settings)/.*\.ts$' | \
               grep -Ev '\.(test|spec)\.ts$' || true)"
 
             if [ -z "${changed}" ]; then
