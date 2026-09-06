@@ -1124,3 +1124,77 @@ describe('checkCiWorkflowContract edge cases', () => {
     ).toStrictEqual([]);
   });
 });
+
+describe('gate contract parsing edge cases', () => {
+  it('rejects a mutate list holding something that is not a glob string', () => {
+    const config = validStrykerConfig() as Record<string, unknown>;
+    expect(
+      checkMutationContract({ ...config, mutate: ['src/**/*.ts', 7] }),
+    ).toStrictEqual([
+      'stryker.config.json.mutate must be an array of glob patterns.',
+    ]);
+  });
+
+  it('rejects a required script declared as an empty string', () => {
+    expect(checkRequiredScripts(validPackageJson({ lint: '' }))).toStrictEqual([
+      'package.json is missing the required script "lint"; the quality gate can no longer run it.',
+    ]);
+  });
+
+  it('rejects a required script declared as something other than a string', () => {
+    const packageJson = validPackageJson() as {
+      scripts: Record<string, unknown>;
+    };
+    packageJson.scripts['lint'] = ['eslint'];
+    expect(checkRequiredScripts(packageJson)).toStrictEqual([
+      expect.stringContaining('missing the required script "lint"'),
+    ]);
+  });
+
+  it('reports a coverage key with no block after it', () => {
+    expect(
+      checkCoverageContract('export default { test: { coverage: }'),
+    ).toStrictEqual(['vitest.config.ts has no coverage block.']);
+  });
+
+  it('reports an unbalanced coverage block as no block at all', () => {
+    expect(
+      checkCoverageContract('export default { test: { coverage: { include: ['),
+    ).toStrictEqual(['vitest.config.ts has no coverage block.']);
+  });
+
+  it('reads the coverage block up to its own closing brace, not the file end', () => {
+    const source = `export default {
+  test: {
+    coverage: {
+      include: ['src/**/*.ts', 'scripts/lib/**/*.ts', 'scripts/github-settings/**/*.ts'],
+      thresholds: { perFile: true, lines: 95, functions: 95, branches: 95, statements: 95 },
+    },
+    other: { thresholds: { lines: 10 } },
+  },
+};`;
+    expect(checkCoverageContract(source)).toStrictEqual([]);
+  });
+
+  it('reports perFile set to false, not only perFile missing', () => {
+    const source = validVitestConfigSource().replace(
+      'perFile: true',
+      'perFile: false',
+    );
+    expect(checkCoverageContract(source)).toStrictEqual([
+      'vitest.config.ts coverage.thresholds.perFile must be true; a repository-wide ' +
+        'average lets a well-tested file cover for an untested one.',
+    ]);
+  });
+
+  it('reports the exact message for a rule weakened to warn', () => {
+    const source = validEslintConfigSource().replace(
+      "complexity: ['error', 10]",
+      "complexity: ['warn', 10]",
+    );
+    expect(checkLintContract(source)).toStrictEqual([
+      'eslint.config.js rule "complexity" is not set to "error"; the quality gate runs ' +
+        'with --max-warnings 0, so anything less strict is silently disabled.',
+    ]);
+  });
+});

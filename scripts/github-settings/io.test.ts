@@ -81,6 +81,13 @@ describe('loadConfiguration', () => {
     );
   });
 
+  it('keeps the underlying failure as the error cause', async () => {
+    readdirMock.mockResolvedValue([]);
+    const cause = new Error('ENOENT: no such file or directory');
+    readFileMock.mockRejectedValue(cause);
+    await expect(loadConfiguration()).rejects.toMatchObject({ cause });
+  });
+
   it('reports a non-Error read failure without losing it', async () => {
     readdirMock.mockResolvedValue([]);
     readFileMock.mockRejectedValue('disk gone');

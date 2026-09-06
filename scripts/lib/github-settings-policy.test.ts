@@ -1280,6 +1280,44 @@ jobs:
     );
   });
 
+  it('reports only the missing job, not also a missing command', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+`;
+    expect(validateCiWorkflowContract(source)).toStrictEqual([
+      'ci.yml must define a job reporting the github-settings status check required by rulesets/main.json',
+    ]);
+  });
+
+  it('accepts a command written with surrounding whitespace', () => {
+    const source = `
+jobs:
+  check:
+    steps:
+      - run: pnpm verify
+  mutation:
+    steps:
+      - run: pnpm test:mutation
+  github-settings:
+    steps:
+      - run: |
+          node scripts/github-settings.ts --check
+`;
+    expect(validateCiWorkflowContract(source)).toStrictEqual([]);
+  });
+
+  it('reports every required check when the document has no jobs mapping', () => {
+    expect(validateCiWorkflowContract('jobs: none')).toStrictEqual([
+      'ci.yml must define a jobs map',
+    ]);
+  });
+
   it('ignores a jobs entry that is not a mapping', () => {
     const source = `
 jobs:
